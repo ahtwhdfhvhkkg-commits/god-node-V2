@@ -54,4 +54,4 @@ class GodVault:
         if not secret:
             raise ValueError(f"Secret for {service_name} not found in God Vault.")
         return secret
-      
+            
