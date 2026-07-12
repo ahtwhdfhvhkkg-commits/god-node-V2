@@ -23,137 +23,154 @@
             height: 100vh;
             overflow: hidden;
         }
-        h1 {
-            text-align: center;
-            text-shadow: 0 0 10px var(--neon-green);
-            font-size: 1.5rem;
-            margin-bottom: 5px;
-        }
+        h1 { text-shadow: 0 0 10px var(--neon-green); margin-bottom: 5px; }
         .status-badge {
             background: rgba(0, 255, 204, 0.1);
             border: 1px solid var(--neon-green);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-bottom: 30px;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+            padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-bottom: 20px;
         }
-        /* The Massive God Button */
+        
+        /* API KEY INPUT BOX */
+        .api-box {
+            width: 100%; max-width: 300px; margin-bottom: 20px;
+        }
+        .api-box input {
+            width: 100%; padding: 10px; background: var(--terminal-bg);
+            border: 1px solid var(--neon-green); color: var(--neon-green);
+            font-family: monospace; border-radius: 5px; text-align: center;
+        }
+
+        /* MASSIVE AWAKEN BUTTON */
         .wake-btn {
-            width: 180px;
-            height: 180px;
-            border-radius: 50%;
-            background: transparent;
-            border: 3px solid var(--neon-green);
-            color: var(--neon-green);
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            outline: none;
+            width: 160px; height: 160px; border-radius: 50%; background: transparent;
+            border: 3px solid var(--neon-green); color: var(--neon-green);
+            font-size: 1.2rem; font-weight: bold; cursor: pointer;
             box-shadow: 0 0 20px rgba(0, 255, 204, 0.4), inset 0 0 20px rgba(0, 255, 204, 0.2);
-            transition: all 0.2s ease-in-out;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            transition: all 0.2s; display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .wake-btn:active {
-            transform: scale(0.95);
-            background: rgba(0, 255, 204, 0.2);
-            box-shadow: 0 0 40px rgba(0, 255, 204, 0.8), inset 0 0 40px rgba(0, 255, 204, 0.5);
+        .wake-btn:active { transform: scale(0.95); }
+        .wake-btn span { font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
+        
+        .listening {
+            border-color: var(--danger-red) !important; color: var(--danger-red) !important;
+            box-shadow: 0 0 30px rgba(255, 0, 60, 0.6), inset 0 0 20px rgba(255, 0, 60, 0.4);
         }
-        .wake-btn span {
-            font-size: 0.8rem;
-            margin-top: 10px;
-            opacity: 0.7;
-        }
-        /* Live Terminal */
+
+        /* LIVE TERMINAL */
         .terminal {
-            margin-top: 40px;
-            width: 100%;
-            max-width: 400px;
-            height: 200px;
-            background-color: var(--terminal-bg);
-            border: 1px solid #333;
-            border-left: 3px solid var(--neon-green);
-            padding: 10px;
-            overflow-y: auto;
-            font-size: 0.85rem;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            margin-top: 30px; width: 100%; max-width: 400px; height: 250px;
+            background-color: var(--terminal-bg); border: 1px solid #333;
+            border-left: 3px solid var(--neon-green); padding: 10px;
+            overflow-y: auto; font-size: 0.85rem;
         }
         .log-entry { margin-bottom: 5px; }
         .log-time { color: #888; margin-right: 10px; }
-        .log-system { color: #fff; }
-        
-        /* Pulse Animation */
-        @keyframes pulse {
-            0% { box-shadow: 0 0 20px rgba(0, 255, 204, 0.4); }
-            50% { box-shadow: 0 0 40px rgba(0, 255, 204, 0.8); }
-            100% { box-shadow: 0 0 20px rgba(0, 255, 204, 0.4); }
-        }
-        .listening {
-            border-color: var(--danger-red) !important;
-            color: var(--danger-red) !important;
-            animation: pulse 1s infinite;
-            box-shadow: 0 0 20px rgba(255, 0, 60, 0.4), inset 0 0 20px rgba(255, 0, 60, 0.2);
-        }
     </style>
 </head>
 <body>
 
     <h1>GOD NODE V2</h1>
-    <div class="status-badge" id="conn-status">🟢 NEURAL LINK ACTIVE</div>
+    <div class="status-badge">🟢 NEURAL LINK ACTIVE</div>
 
-    <button class="wake-btn" id="wakeBtn" onclick="toggleListening()">
+    <!-- API KEY INPUT -->
+    <div class="api-box">
+        <input type="password" id="geminiApiKey" placeholder="PASTE GEMINI API KEY HERE">
+    </div>
+
+    <!-- THE BUTTON -->
+    <button class="wake-btn" id="wakeBtn" onclick="startRealListening()">
         AWAKEN
-        <span>Tap or say "Hai Gemini"</span>
+        <span>Tap to speak</span>
     </button>
 
     <div class="terminal" id="terminalBox">
-        <div class="log-entry"><span class="log-time">[SYSTEM]</span><span class="log-system"> Command Center Initialized...</span></div>
-        <div class="log-entry"><span class="log-time">[NETWORK]</span><span class="log-system"> Connecting to Render Backend... OK</span></div>
+        <div class="log-entry"><span class="log-time">[SYSTEM]</span><span style="color: #00ffcc;"> AI Command Center Ready.</span></div>
     </div>
 
     <script>
         const terminal = document.getElementById('terminalBox');
         const wakeBtn = document.getElementById('wakeBtn');
-        let isListening = false;
+        const apiKeyInput = document.getElementById('geminiApiKey');
+        
+        // Browser Speech Recognition API (The Real Mic)
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
-        function addLog(message, type="SYSTEM") {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
-            const logHTML = `<div class="log-entry"><span class="log-time">[${time}]</span><span style="color: ${type === 'ERROR' ? '#ff003c' : '#00ffcc'}"> ${message}</span></div>`;
-            terminal.innerHTML += logHTML;
-            terminal.scrollTop = terminal.scrollHeight;
+        if(recognition) {
+            recognition.continuous = false;
+            recognition.lang = 'en-US'; // You can change to 'hi-IN' for Hindi
+            
+            recognition.onstart = function() {
+                wakeBtn.classList.add('listening');
+                wakeBtn.innerHTML = 'LISTENING...<span>Speak Now</span>';
+                addLog("Mic is ON. Listening to you...", "SYSTEM");
+            };
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                addLog(`[YOU SAID]: "${transcript}"`, "SYSTEM");
+                
+                // Wake word check
+                if(transcript.toLowerCase().includes("gemini")) {
+                    addLog("Wake word 'Gemini' detected! Triggering God Node...", "SYSTEM");
+                    sendToBackend(transcript);
+                } else {
+                    addLog("No wake word found. Ignored.", "ERROR");
+                }
+            };
+
+            recognition.onerror = function(event) {
+                addLog(`Mic Error: ${event.error}`, "ERROR");
+            };
+
+            recognition.onend = function() {
+                wakeBtn.classList.remove('listening');
+                wakeBtn.innerHTML = 'AWAKEN<span>Tap to speak</span>';
+            };
+        } else {
+            addLog("WARNING: Your browser doesn't support Voice Mic.", "ERROR");
         }
 
-        function toggleListening() {
-            isListening = !isListening;
-            if(isListening) {
-                wakeBtn.classList.add('listening');
-                wakeBtn.innerHTML = 'LISTENING...<span>Awaiting Audio Input</span>';
-                addLog("Mic activated. Waiting for wake word...", "SYSTEM");
-                // Here we will link the Web Speech API / WebSocket audio stream
-                setTimeout(() => {
-                    addLog("Target acquired. Generating 3D parameters...", "SYSTEM");
-                }, 2000);
-            } else {
-                wakeBtn.classList.remove('listening');
-                wakeBtn.innerHTML = 'AWAKEN<span>Tap or say "Hai Gemini"</span>';
-                addLog("Mic deactivated. Neural link on standby.", "SYSTEM");
+        function startRealListening() {
+            if(!recognition) return;
+            recognition.start();
+        }
+
+        async function sendToBackend(command) {
+            const apiKey = apiKeyInput.value.trim();
+            if(!apiKey) {
+                addLog("ERROR: API Key is missing! Please paste it above.", "ERROR");
+                return;
+            }
+
+            addLog("Sending command to Render Server...", "SYSTEM");
+
+            try {
+                // Sending real data to your main.py /execute route
+                const response = await fetch('/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_vault: { "gemini": [apiKey] },
+                        target_system: "generate_game",
+                        directive: command,
+                        master_pin: "7777" // The master pin from your main.py
+                    })
+                });
+                
+                const data = await response.json();
+                addLog(`[GOD NODE]: ${JSON.stringify(data)}`, "SYSTEM");
+            } catch (err) {
+                addLog(`[SERVER ERROR]: ${err.message}`, "ERROR");
             }
         }
 
-        // Establish WebSocket Connection
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        
-        try {
-            addLog(`Attempting WS connection to backend...`, "SYSTEM");
-            // const ws = new WebSocket(wsUrl); // Will uncomment when backend WS is ready
-        } catch(e) {
-            addLog("WS Connection deferred until backend route is live.", "ERROR");
+        function addLog(message, type="SYSTEM") {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const color = type === 'ERROR' ? '#ff003c' : '#00ffcc';
+            terminal.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span><span style="color: ${color};"> ${message}</span></div>`;
+            terminal.scrollTop = terminal.scrollHeight;
         }
     </script>
 </body>
 </html>
-
