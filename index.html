@@ -3,256 +3,267 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOD NODE V2 - COMMAND CENTER</title>
+    <title>GOD NODE V2 | Command Center</title>
     <style>
-        /* Strict Hacker Neon-Green & Black Theme */
+        /* Sleek Premium Black & White Theme */
         body {
-            background-color: #050505;
-            color: #00ffcc;
-            font-family: 'Courier New', Courier, monospace;
+            background-color: #ffffff;
+            color: #111111;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
         h1 {
-            text-shadow: 0 0 15px #00ffcc;
+            font-weight: 800;
+            letter-spacing: -1px;
             margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #000000;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
         }
         .container {
             width: 100%;
-            max-width: 850px;
-            background: #0a0a0f;
-            border: 1px solid #00ffcc;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
-            padding: 25px;
-            border-radius: 8px;
-            margin-top: 20px;
+            max-width: 800px;
+            background: #ffffff;
+            border: 2px solid #000000;
+            padding: 40px;
+            box-shadow: 8px 8px 0px #000000; /* Brutalist minimal shadow */
+            margin-top: 30px;
         }
         .section {
-            margin-bottom: 25px;
-            padding-bottom: 25px;
-            border-bottom: 1px dashed #004433;
+            margin-bottom: 35px;
         }
         h3 {
             margin-top: 0;
-            color: #00ffa0;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
         }
         input, select, button {
-            background: #020202;
-            color: #00ffcc;
-            border: 1px solid #00ffcc;
-            padding: 12px;
-            font-family: 'Courier New', Courier, monospace;
+            background: #ffffff;
+            color: #000000;
+            border: 2px solid #000000;
+            padding: 12px 15px;
+            font-family: inherit;
             font-size: 14px;
-            border-radius: 4px;
+            font-weight: 600;
+            transition: all 0.2s ease;
         }
         input:focus, select:focus {
             outline: none;
-            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+            background: #f4f4f4;
         }
         button {
             cursor: pointer;
-            font-weight: bold;
-            background: #002211;
-            transition: all 0.3s ease;
+            background: #000000;
+            color: #ffffff;
+            text-transform: uppercase;
         }
         button:hover {
-            background: #00ffcc;
-            color: #000;
-            box-shadow: 0 0 15px #00ffcc;
+            background: #ffffff;
+            color: #000000;
         }
         .input-group {
             display: flex;
             gap: 15px;
-            margin-top: 10px;
+            margin-bottom: 15px;
         }
         .input-group input {
             flex-grow: 1;
         }
         .terminal {
-            background: #000;
-            border: 1px solid #004433;
+            background: #f9f9f9;
+            border: 2px solid #000000;
             padding: 20px;
-            height: 350px;
+            height: 300px;
             overflow-y: auto;
-            font-size: 14px;
-            color: #00ffaa;
-            line-height: 1.5;
-            box-shadow: inset 0 0 10px #000;
-        }
-        .vault-list {
-            margin-top: 15px;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 13px;
-            color: #66aa88;
+            line-height: 1.6;
         }
         .vault-item {
-            color: #00ffcc;
+            display: inline-block;
+            background: #000000;
+            color: #ffffff;
+            padding: 4px 10px;
+            font-size: 12px;
             font-weight: bold;
-            background: #003322;
-            padding: 3px 8px;
-            border-radius: 3px;
-            margin-right: 5px;
+            margin-right: 8px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-    <h1>GOD NODE V2</h1>
-    <p style="margin-top: 0; letter-spacing: 2px;">● NEURAL LINK ACTIVE</p>
+    <h1>God Node V2</h1>
+    <p style="margin-top: 0; font-weight: 600; font-size: 12px; letter-spacing: 1px;">
+        <span class="status-dot"></span> ENTERPRISE NEURAL LINK ACTIVE
+    </p>
 
     <div class="container">
-        <!-- API VAULT SECTION -->
+        <!-- API VAULT -->
         <div class="section">
-            <h3>[ SECURE API VAULT ]</h3>
+            <h3>Secure API Vault</h3>
             <div class="input-group">
                 <select id="apiProvider">
                     <option value="gemini">Google Gemini</option>
                     <option value="openai">OpenAI (GPT-4)</option>
                     <option value="openrouter">OpenRouter</option>
-                    <option value="elevenlabs">ElevenLabs (Audio)</option>
-                    <option value="claude">Anthropic Claude</option>
-                    <option value="gdrive">Google Drive (Storage)</option>
+                    <option value="gdrive">Google Drive</option>
                 </select>
-                <input type="password" id="apiKeyInput" placeholder="Enter API Key here to load into memory...">
-                <button onclick="addApiKey()">ADD KEY</button>
+                <input type="password" id="apiKeyInput" placeholder="Enter API Key to load into memory...">
+                <button onclick="addApiKey()">Add Key</button>
             </div>
-            <div id="vaultDisplay" class="vault-list">Keys Loaded: [ None ]</div>
+            <div id="vaultDisplay" style="font-size: 13px; font-weight: 600;">Status: No keys loaded.</div>
         </div>
 
-        <!-- COMMAND SECTION -->
+        <!-- COMMAND EXECUTION -->
         <div class="section">
-            <h3>[ DIRECTIVE INPUT ]</h3>
-            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                <input type="password" id="masterPin" placeholder="Master PIN (7777)" value="7777" style="width: 200px;">
+            <h3>Directive Input</h3>
+            <div class="input-group">
+                <input type="password" id="masterPin" placeholder="PIN (7777)" value="7777" style="max-width: 100px;">
                 <select id="targetSystem" style="flex-grow: 1;">
                     <option value="generate_game">Target: Game Generation Swarm</option>
-                    <option value="universal_nexus">Target: Multi-Brain Routing Nexus</option>
+                    <option value="universal_nexus">Target: Multi-Brain Routing</option>
                 </select>
             </div>
-
             <div class="input-group">
-                <input type="text" id="directiveInput" placeholder="> Type your God Command here...">
-                <button onclick="executeCommand()" style="width: 150px; font-size: 16px;">EXECUTE</button>
+                <input type="text" id="directiveInput" placeholder="Type your God Command here...">
+                <button onclick="executeCommand()">Execute</button>
             </div>
         </div>
 
-        <!-- TERMINAL SECTION -->
-        <div class="section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
-            <h3>[ LIVE TERMINAL OUTPUT ]</h3>
+        <!-- BACKGROUND TASK CHECKER -->
+        <div class="section">
+            <h3>Task Status Monitor</h3>
+            <div class="input-group">
+                <input type="text" id="taskIdInput" placeholder="Enter Task ID to check progress...">
+                <button onclick="checkTaskStatus()" style="background: #ffffff; color: #000000;">Check Status</button>
+            </div>
+        </div>
+
+        <!-- TERMINAL -->
+        <div class="section" style="margin-bottom: 0;">
+            <h3>System Output</h3>
             <div class="terminal" id="terminalOutput">
-                > System initialized. Awaiting API keys and directives...
+                <b>SYSTEM BOOT COMPLETE.</b><br>Awaiting commands...<br>
             </div>
         </div>
     </div>
 
     <script>
-        // Global API Vault memory structure
-        let apiVault = {
-            "gemini": [], "openai": [], "openrouter": [], 
-            "elevenlabs": [], "claude": [], "gdrive": []
-        };
-
+        let apiVault = { "gemini": [], "openai": [], "openrouter": [], "gdrive": [] };
         const terminal = document.getElementById('terminalOutput');
-        const vaultDisplay = document.getElementById('vaultDisplay');
 
-        // Terminal Logging Function
-        function logToTerminal(message, isError = false) {
-            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-            const color = isError ? '#ff3333' : '#00ffcc';
-            terminal.innerHTML += `<br><span style="color: ${color}">[${timestamp}] ${message}</span>`;
+        function logToTerminal(msg, isBold = false) {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const content = isBold ? `<b>${msg}</b>` : msg;
+            terminal.innerHTML += `<br>[${time}] ${content}`;
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        // Add API Key to Vault
         function addApiKey() {
             const provider = document.getElementById('apiProvider').value;
-            const keyInput = document.getElementById('apiKeyInput');
-            const key = keyInput.value.trim();
-
+            const key = document.getElementById('apiKeyInput').value.trim();
             if (key) {
-                if (!apiVault[provider]) apiVault[provider] = [];
-                
                 if (!apiVault[provider].includes(key)) {
                     apiVault[provider].push(key);
-                    keyInput.value = ''; // Clear input for safety
+                    document.getElementById('apiKeyInput').value = '';
                     updateVaultDisplay();
-                    logToTerminal(`> SUCCESS: 1x Key securely injected for [${provider.toUpperCase()}]`);
-                } else {
-                    logToTerminal(`> WARNING: Key already exists in memory for [${provider.toUpperCase()}]`, true);
+                    logToTerminal(`Key injected successfully for: ${provider.toUpperCase()}`, true);
                 }
-            } else {
-                logToTerminal('> ERROR: Cannot inject an empty key.', true);
             }
         }
 
-        // Update UI Vault Display
         function updateVaultDisplay() {
-            let loaded = [];
+            let html = '';
             for (const [provider, keys] of Object.entries(apiVault)) {
-                if (keys.length > 0) {
-                    loaded.push(`<span class="vault-item">${provider.toUpperCase()} (${keys.length})</span>`);
-                }
+                if (keys.length > 0) html += `<div class="vault-item">${provider.toUpperCase()} (${keys.length})</div>`;
             }
-            vaultDisplay.innerHTML = loaded.length > 0 ? `Keys Loaded: ${loaded.join(' ')}` : 'Keys Loaded: [ None ]';
+            document.getElementById('vaultDisplay').innerHTML = html || 'Status: No keys loaded.';
         }
 
-        // Execute Command Sequence
         async function executeCommand() {
             const pin = document.getElementById('masterPin').value;
             const target = document.getElementById('targetSystem').value;
             const directive = document.getElementById('directiveInput').value;
 
-            if (!directive) {
-                logToTerminal('> ERROR: Directive cannot be empty.', true);
+            if (!directive || !pin) {
+                logToTerminal('ERROR: PIN and Directive are required.');
                 return;
             }
 
-            logToTerminal(`> Initializing Neural Link to target [${target}]...`);
-            logToTerminal(`> Executing Directive: "${directive}"`);
-
-            const payload = {
-                api_vault: apiVault,
-                target_system: target,
-                directive: directive,
-                master_pin: pin
-            };
+            logToTerminal(`Executing Directive: "${directive}"...`, true);
 
             try {
-                // Determine the correct backend URL (handles localhost vs Render domain)
-                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                                   ? 'http://localhost:8000/execute' 
-                                   : '/execute';
-
-                const response = await fetch(backendUrl, {
+                const url = window.location.hostname === 'localhost' ? 'http://localhost:8000/execute' : '/execute';
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({ api_vault: apiVault, target_system: target, directive: directive, master_pin: pin })
                 });
 
-                // THE JSON FIX: Safely parse text first to prevent crash on Render Timeout
-                const textResult = await response.text(); 
+                const data = await response.json();
                 
-                try {
-                    const jsonResult = JSON.parse(textResult);
-                    logToTerminal(`> [SERVER RESPONSE SUCCESS]:`);
-                    // Beautify JSON output in the terminal
-                    const formattedJson = JSON.stringify(jsonResult, null, 2)
-                        .replace(/\n/g, '<br>')
-                        .replace(/ /g, '&nbsp;');
-                    logToTerminal(formattedJson);
-                } catch (e) {
-                    // This catches the exact HTML Timeout Error you were facing
-                    logToTerminal(`> [SERVER TIMEOUT / CRASH]: The server took too long and Render cut the connection.`, true);
-                    logToTerminal(`> [RAW OUTPUT]: ${textResult.substring(0, 100)}...`, true);
+                if(data.task_id) {
+                    logToTerminal(`BACKGROUND TASK STARTED!`);
+                    logToTerminal(`<b>TASK ID: ${data.task_id}</b>`);
+                    logToTerminal(`Copy this ID and paste it in the 'Task Status Monitor' below to check progress.`);
+                    document.getElementById('taskIdInput').value = data.task_id; // Auto-fill
+                } else {
+                    logToTerminal(JSON.stringify(data, null, 2).replace(/\n/g, '<br>'));
                 }
-
             } catch (error) {
-                logToTerminal(`> [NETWORK FATAL ERROR]: ${error.message}`, true);
+                logToTerminal(`NETWORK ERROR: ${error.message}`);
+            }
+        }
+
+        async function checkTaskStatus() {
+            const pin = document.getElementById('masterPin').value;
+            const taskId = document.getElementById('taskIdInput').value.trim();
+
+            if (!taskId || !pin) {
+                logToTerminal('ERROR: PIN and Task ID are required to check status.');
+                return;
+            }
+
+            logToTerminal(`Checking status for Task: ${taskId}...`);
+
+            try {
+                const url = window.location.hostname === 'localhost' ? 'http://localhost:8000/check_status' : '/check_status';
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task_id: taskId, master_pin: pin })
+                });
+
+                const data = await response.json();
+                const formatted = JSON.stringify(data, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+                logToTerminal(`<div style="background:#eaeaea; padding:10px; margin-top:5px;">${formatted}</div>`);
+            } catch (error) {
+                logToTerminal(`NETWORK ERROR: ${error.message}`);
             }
         }
     </script>
 </body>
     </html>
-                    
+    
+            
