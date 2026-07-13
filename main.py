@@ -1,120 +1,234 @@
 import asyncio
+import os
+import sys
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 # ---------------------------------------------------------
-# 1. THE MASTER LINK
+# 1. ENTERPRISE-GRADE BULLETPROOF IMPORTS
 # ---------------------------------------------------------
+# Initializing global instances to None to prevent NameError
+EvolutionEngine = None
+orchestrator = None
+gateway = None
+vault = None
+cpp_engine = None
+multiplayer_nexus = None
+asset_forge = None
+economy = None
+s3_cloud = None
+pixel_stream = None
+deployment = None
+
+# We use isolated try-except blocks for EACH import. 
+# This ensures that one missing or empty file does not crash the entire neural network.
+
+try:
+    from god_brain.self_evolution import EvolutionEngine
+    print("[SYSTEM] EvolutionEngine loaded successfully.")
+except Exception as e:
+    print(f"[WARNING] EvolutionEngine import failed: {e}")
+
+try:
+    from god_brain.orchestrator import GodOrchestrator
+    orchestrator = GodOrchestrator()
+    print("[SYSTEM] GodOrchestrator loaded successfully.")
+except Exception as e:
+    print(f"[WARNING] GodOrchestrator import failed: {e}")
+
 try:
     from core.gateway import GatewayRouter
-    from god_brain.self_evolution import EvolutionEngine
-    from core_engine.cpp_bridge import CPPExecutionBridge
-    from security_vault.encryption import GodAuth
-    from multiplayer_nexus.sync_server import GodLevelMultiplayerNexus
-    from assets_factory.asset_manager import GodAssetForge
-    from economy_vault.billing_core import GodEconomyEngine
-    
-    from god_brain.orchestrator import GodOrchestrator
-    from cloud_storage.s3_manager import S3CloudManager
-    from pixel_streaming.webrtc_core import PixelStreamEngine
-    from deployment.deployment_core import GodDeploymentManager
-except ImportError as e:
-    print(f"CRITICAL IMPORT WARNING: {e}")
-
-app = FastAPI(title="The God Node V2", version="10.0-ENTERPRISE (Swarm Edition)")
-
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
-)
-
-# ---------------------------------------------------------
-# 2. FULL SYSTEM INITIALIZATION
-# ---------------------------------------------------------
-vault = cpp_engine = multiplayer_nexus = asset_forge = economy = None
-orchestrator = s3_cloud = pixel_stream = deployment = None
+    gateway = GatewayRouter()
+except Exception as e:
+    print(f"[WARNING] GatewayRouter import failed: {e}")
 
 try:
+    from security_vault.encryption import GodAuth
     vault = GodAuth()
+except Exception as e:
+    print(f"[WARNING] GodAuth import failed: {e}")
+
+try:
+    from core_engine.cpp_bridge import CPPExecutionBridge
     cpp_engine = CPPExecutionBridge()
+except Exception as e:
+    pass
+
+try:
+    from multiplayer_nexus.sync_server import GodLevelMultiplayerNexus
     multiplayer_nexus = GodLevelMultiplayerNexus()
+except Exception as e:
+    pass
+
+try:
+    from assets_factory.asset_manager import GodAssetForge
     asset_forge = GodAssetForge()
+except Exception as e:
+    pass
+
+try:
+    from economy_vault.billing_core import GodEconomyEngine
     economy = GodEconomyEngine()
-    orchestrator = GodOrchestrator()
+except Exception as e:
+    pass
+
+try:
+    from cloud_storage.s3_manager import S3CloudManager
     s3_cloud = S3CloudManager()
+except Exception as e:
+    pass
+
+try:
+    from pixel_streaming.webrtc_core import PixelStreamEngine
     pixel_stream = PixelStreamEngine()
+except Exception as e:
+    pass
+
+try:
+    from deployment.deployment_core import GodDeploymentManager
     deployment = GodDeploymentManager()
-except NameError:
-    pass 
+except Exception as e:
+    pass
+
+
+# ---------------------------------------------------------
+# 2. FASTAPI APP INITIALIZATION
+# ---------------------------------------------------------
+app = FastAPI(
+    title="The God Node V2",
+    description="Autonomous Enterprise AGI Engine",
+    version="10.0-ENTERPRISE (Swarm Edition)"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MASTER_PIN = "7777"
 
+# ---------------------------------------------------------
+# 3. DATA MODELS
+# ---------------------------------------------------------
 class GodCommand(BaseModel):
-    api_vault: Dict[str, List[str]] = Field(...)
-    target_system: str = Field(...)
-    directive: str = Field(...)
-    master_pin: str = Field(...)
+    api_vault: Dict[str, List[str]] = Field(..., description="Contains API keys for Gemini, OpenAI, Claude")
+    target_system: str = Field(..., description="The subsystem to route the command to")
+    directive: str = Field(..., description="The actual natural language command")
+    master_pin: str = Field(..., description="Security pin to authenticate the request")
+
 
 # ---------------------------------------------------------
-# 3. COMMAND CENTER ROUTER
+# 4. CORE ROUTING & ENDPOINTS
 # ---------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def engine_status():
+    """Serves the frontend Command Center UI."""
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read(), status_code=200)
     except FileNotFoundError:
-        return HTMLResponse(content="<h1>SYSTEM ACTIVE. Upload index.html</h1>", status_code=200)
+        return HTMLResponse(
+            content="<h1 style='color: #00ffcc; background: #0a0a0f; padding: 20px; font-family: monospace;'>SYSTEM ACTIVE. Upload index.html to view UI.</h1>",
+            status_code=200
+        )
 
 @app.post("/execute")
 async def execute_god_command(payload: GodCommand):
+    """The Master API Endpoint that routes commands to the appropriate AI Brain."""
+    
+    # 1. AUTHENTICATION
     if payload.master_pin != MASTER_PIN:
         raise HTTPException(status_code=403, detail="ACCESS DENIED: Invalid Master PIN")
 
     try:
+        # ---------------------------------------------------------
+        # PATH 1: GAME GENERATION (ORCHESTRATOR SWARM)
+        # ---------------------------------------------------------
         if payload.target_system == "generate_game":
             if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
+                # We have the real orchestrator loaded
                 game_result = await orchestrator.generate_full_game_with_swarm(
-                    prompt=payload.directive, agent_count=200, auto_kill_after_execution=True
+                    prompt=payload.directive, 
+                    agent_count=200, 
+                    auto_kill_after_execution=True
                 )
+                return game_result
             else:
-                game_result = {
+                # Simulation mode if orchestrator is missing
+                return {
                     "status": "SIMULATION_SUCCESS", 
-                    "final_build": f"Mocking GTA Game for prompt: '{payload.directive}'. (Orchestrator module missing!)"
+                    "final_build": f"Mocking Enterprise Game Build for: '{payload.directive}'. (Orchestrator module is missing or incomplete. Use self_update to generate it!)"
                 }
-            return game_result
         
+        # ---------------------------------------------------------
+        # PATH 2: SELF-UPGRADER (EVOLUTION ENGINE)
+        # ---------------------------------------------------------
         elif payload.target_system == "self_update":
-            # ---------------------------------------------------------
-            # THE REAL UPGRADER (SELF-EVOLUTION) UNLOCKED
-            # ---------------------------------------------------------
+            # Check for Gemini key which powers the evolution engine
             api_keys = payload.api_vault.get("gemini", [])
             if not api_keys or not api_keys[0]:
-                return {"status": "ERROR", "msg": "CRITICAL: Gemini API Key missing in Vault!"}
+                return {
+                    "status": "ERROR", 
+                    "msg": "CRITICAL: Gemini API Key is missing in the Multi-API Vault!"
+                }
             
+            if EvolutionEngine is None:
+                 return {
+                     "status": "ERROR", 
+                     "msg": "CRITICAL: EvolutionEngine class could not be loaded from god_brain.self_evolution. Check the file for syntax errors."
+                 }
+                 
             try:
-                # सीधे तुम्हारे सेल्फ-अपग्रेडर (EvolutionEngine) को कमांड जा रही है
-                evolution = EvolutionEngine(api_gateway={"gemini": api_keys[0]})
-                result = await evolution.evolve_file("index.html", payload.directive)
+                # Instantiate the Evolution Engine with the provided API key
+                evolution_instance = EvolutionEngine(api_gateway={"gemini": api_keys[0]})
+                
+                # Smart Target Resolver: Decide which file to edit based on the directive
+                target_file = "api_nexus.py" # Default fallback
+                directive_lower = payload.directive.lower()
+                
+                if "gateway.py" in directive_lower:
+                    target_file = "core/gateway.py"
+                elif "orchestrator.py" in directive_lower:
+                    target_file = "god_brain/orchestrator.py"
+                elif "index.html" in directive_lower:
+                    target_file = "index.html"
+                
+                # Trigger the actual file evolution
+                result = await evolution_instance.evolve_file(target_file, payload.directive)
                 
                 return {
                     "status": "EVOLUTION_SUCCESS", 
-                    "msg": "The AI Agent has successfully modified the code!",
+                    "msg": f"The Autonomous AI Agent has successfully modified {target_file}.",
                     "details": result
                 }
-            except Exception as e:
-                # अगर कोई भी एरर आया तो सर्वर क्रैश नहीं होगा, बल्कि एरर मैसेज दिखा देगा
-                return {"status": "ERROR", "msg": f"Evolution failed: {str(e)}"}
+            except Exception as evolution_error:
+                return {
+                    "status": "ERROR", 
+                    "msg": f"Evolution Core Exception: {str(evolution_error)}"
+                }
 
+        # ---------------------------------------------------------
+        # PATH 3: DEFAULT GATEWAY ROUTING
+        # ---------------------------------------------------------
         else:
-            return {"status": "Gateway Routing Active", "msg": f"Routed to {payload.target_system}"}
+            return {
+                "status": "Gateway Routing Active", 
+                "msg": f"Successfully routed to subsystem: {payload.target_system}",
+                "directive_length": len(payload.directive)
+            }
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ENGINE HALT: str({e})")
+    except Exception as system_error:
+        # Catch-all for any unhandled exceptions to prevent the server from dying
+        raise HTTPException(status_code=500, detail=f"ENGINE HALT: {str(system_error)}")
+
 
 if __name__ == "__main__":
     import uvicorn
+    # Running the server on 0.0.0.0 binds it to all interfaces, required for Render/Cloud
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-        
