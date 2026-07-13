@@ -8,9 +8,8 @@ from pydantic import BaseModel, Field
 from typing import Dict, List, Any, Optional
 
 # ---------------------------------------------------------
-# 1. ENTERPRISE-GRADE BULLETPROOF IMPORTS
+# 1. ENTERPRISE GLOBAL BULLETPROOF IMPORTS
 # ---------------------------------------------------------
-# Initializing global instances to None to prevent NameError
 EvolutionEngine = None
 orchestrator = None
 gateway = None
@@ -22,8 +21,9 @@ economy = None
 s3_cloud = None
 pixel_stream = None
 deployment = None
+MultiBrainRouter = None
 
-# We use isolated try-except blocks for EACH import. 
+# We use isolated try-except blocks for EACH import.
 # This ensures that one missing or empty file does not crash the entire neural network.
 
 try:
@@ -50,6 +50,12 @@ try:
     vault = GodAuth()
 except Exception as e:
     print(f"[WARNING] GodAuth import failed: {e}")
+
+try:
+    from god_brain.api_nexus import MultiBrainRouter
+    print("[SYSTEM] MultiBrainRouter loaded successfully.")
+except Exception as e:
+    print(f"[WARNING] MultiBrainRouter import failed: {e}")
 
 try:
     from core_engine.cpp_bridge import CPPExecutionBridge
@@ -93,7 +99,6 @@ try:
 except Exception as e:
     pass
 
-
 # ---------------------------------------------------------
 # 2. FASTAPI APP INITIALIZATION
 # ---------------------------------------------------------
@@ -121,7 +126,6 @@ class GodCommand(BaseModel):
     target_system: str = Field(..., description="The subsystem to route the command to")
     directive: str = Field(..., description="The actual natural language command")
     master_pin: str = Field(..., description="Security pin to authenticate the request")
-
 
 # ---------------------------------------------------------
 # 4. CORE ROUTING & ENDPOINTS
@@ -164,4 +168,34 @@ async def execute_god_command(payload: GodCommand):
                 return {
                     "status": "SIMULATION_SUCCESS",
                     "final_build": f"Mocking Enterprise Game Build for: '{payload.directive}'"
-    }
+                }
+        
+        # ---------------------------------------------------------
+        # PATH 2: UNIVERSAL NEXUS ROUTING 
+        # ---------------------------------------------------------
+        else:
+            if MultiBrainRouter is not None:
+                nexus_instance = MultiBrainRouter(api_vault=payload.api_vault)
+                nexus_result = await nexus_instance.analyze_and_route_task(payload.directive)
+                return {
+                    "status": "NEXUS_ROUTED", 
+                    "msg": "Task delegated via Universal Multi-Brain architecture.",
+                    "nexus_response": nexus_result
+                }
+            else:
+                return {
+                    "status": "SIMULATION_SUCCESS", 
+                    "msg": f"Target system '{payload.target_system}' processed directive: '{payload.directive}'"
+                }
+
+    # THE CRITICAL MISSING EXCEPT BLOCK IS NOW RESTORED BELOW
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ENGINE HALT: {str(e)}")
+
+# ---------------------------------------------------------
+# 5. SERVER EXECUTION 
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
