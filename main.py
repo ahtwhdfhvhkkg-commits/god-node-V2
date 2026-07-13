@@ -162,5 +162,6 @@ async def execute_god_command(payload: GodCommand):
             else:
                 # Simulation mode if orchestrator is missing
                 return {
-                    "status": "SIMULATION_SUCCESS", 
-                    "final_build": f"Mocking Enterprise Game Build for: '{payload.directive
+                    "status": "SIMULATION_SUCCESS",
+                    "final_build": f"Mocking Enterprise Game Build for: '{payload.directive}'"
+    }
