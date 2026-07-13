@@ -12,44 +12,51 @@
             --danger-red: #ff003c;
         }
         body {
-            background-color: var(--dark-bg);
-            color: var(--neon-green);
-            font-family: 'Courier New', Courier, monospace;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            background-color: var(--dark-bg); color: var(--neon-green);
+            font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden;
         }
         h1 { text-shadow: 0 0 10px var(--neon-green); margin-bottom: 5px; }
         .status-badge {
-            background: rgba(0, 255, 204, 0.1);
-            border: 1px solid var(--neon-green);
-            padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-bottom: 20px;
+            background: rgba(0, 255, 204, 0.1); border: 1px solid var(--neon-green);
+            padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-bottom: 15px;
         }
         
-        /* API KEY INPUT BOX */
-        .api-box {
-            width: 100%; max-width: 300px; margin-bottom: 20px;
-        }
+        /* API KEY BOX */
+        .api-box { width: 100%; max-width: 320px; margin-bottom: 15px; }
         .api-box input {
             width: 100%; padding: 10px; background: var(--terminal-bg);
             border: 1px solid var(--neon-green); color: var(--neon-green);
             font-family: monospace; border-radius: 5px; text-align: center;
         }
 
+        /* MANUAL TEXT COMMAND BOX (NEW) */
+        .command-box {
+            width: 100%; max-width: 320px; display: flex; margin-bottom: 20px;
+        }
+        .command-box input {
+            flex-grow: 1; padding: 10px; background: var(--terminal-bg);
+            border: 1px solid var(--neon-green); color: #fff; font-family: monospace;
+            border-radius: 5px 0 0 5px; outline: none;
+        }
+        .command-box button {
+            padding: 10px 15px; background: rgba(0, 255, 204, 0.2);
+            border: 1px solid var(--neon-green); color: var(--neon-green);
+            font-weight: bold; cursor: pointer; border-radius: 0 5px 5px 0;
+            transition: 0.2s;
+        }
+        .command-box button:active { background: var(--neon-green); color: #000; }
+
         /* MASSIVE AWAKEN BUTTON */
         .wake-btn {
-            width: 160px; height: 160px; border-radius: 50%; background: transparent;
+            width: 120px; height: 120px; border-radius: 50%; background: transparent;
             border: 3px solid var(--neon-green); color: var(--neon-green);
-            font-size: 1.2rem; font-weight: bold; cursor: pointer;
+            font-size: 1rem; font-weight: bold; cursor: pointer;
             box-shadow: 0 0 20px rgba(0, 255, 204, 0.4), inset 0 0 20px rgba(0, 255, 204, 0.2);
             transition: all 0.2s; display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
         .wake-btn:active { transform: scale(0.95); }
-        .wake-btn span { font-size: 0.7rem; margin-top: 10px; opacity: 0.7; }
+        .wake-btn span { font-size: 0.6rem; margin-top: 10px; opacity: 0.7; }
         
         .listening {
             border-color: var(--danger-red) !important; color: var(--danger-red) !important;
@@ -58,12 +65,12 @@
 
         /* LIVE TERMINAL */
         .terminal {
-            margin-top: 30px; width: 100%; max-width: 400px; height: 250px;
+            margin-top: 20px; width: 100%; max-width: 400px; height: 250px;
             background-color: var(--terminal-bg); border: 1px solid #333;
             border-left: 3px solid var(--neon-green); padding: 10px;
             overflow-y: auto; font-size: 0.85rem;
         }
-        .log-entry { margin-bottom: 5px; }
+        .log-entry { margin-bottom: 5px; word-wrap: break-word; }
         .log-time { color: #888; margin-right: 10px; }
     </style>
 </head>
@@ -77,84 +84,95 @@
         <input type="password" id="geminiApiKey" placeholder="PASTE GEMINI API KEY HERE">
     </div>
 
-    <!-- THE BUTTON -->
+    <!-- MANUAL TEXT COMMAND INPUT (THE FIX) -->
+    <div class="command-box">
+        <input type="text" id="manualCommand" placeholder="> Type your command here...">
+        <button onclick="sendManualCommand()">EXECUTE</button>
+    </div>
+
+    <!-- VOICE MIC BUTTON -->
     <button class="wake-btn" id="wakeBtn" onclick="startRealListening()">
-        AWAKEN
+        MIC
         <span>Tap to speak</span>
     </button>
 
     <div class="terminal" id="terminalBox">
-        <div class="log-entry"><span class="log-time">[SYSTEM]</span><span style="color: #00ffcc;"> AI Command Center Ready.</span></div>
+        <div class="log-entry"><span class="log-time">[SYSTEM]</span><span style="color: #00ffcc;"> Keyboard & Voice Ready.</span></div>
     </div>
 
     <script>
         const terminal = document.getElementById('terminalBox');
         const wakeBtn = document.getElementById('wakeBtn');
         const apiKeyInput = document.getElementById('geminiApiKey');
+        const cmdInput = document.getElementById('manualCommand');
         
-        // Browser Speech Recognition API (The Real Mic)
+        // --- 1. Keyboard Typing Logic ---
+        cmdInput.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { // Enter दबाते ही कमांड सेंड हो जाएगी
+                event.preventDefault();
+                sendManualCommand();
+            }
+        });
+
+        function sendManualCommand() {
+            const commandText = cmdInput.value.trim();
+            if(!commandText) return;
+            
+            addLog(`[YOU TYPED]: "${commandText}"`, "SYSTEM");
+            
+            // अगर तुम खुद टाइप कर रहे हो तो 'Hai Gemini' बोलने की ज़रूरत नहीं
+            let finalCommand = commandText;
+            if(!finalCommand.toLowerCase().includes("gemini")) {
+                finalCommand = "Hai Gemini, " + finalCommand; 
+            }
+            
+            sendToBackend(finalCommand);
+            cmdInput.value = ""; // बॉक्स खाली कर दो
+        }
+
+        // --- 2. Voice Mic Logic ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
         if(recognition) {
-            recognition.continuous = false;
-            recognition.lang = 'en-US'; // You can change to 'hi-IN' for Hindi
-            
+            recognition.continuous = false; recognition.lang = 'en-US';
             recognition.onstart = function() {
-                wakeBtn.classList.add('listening');
-                wakeBtn.innerHTML = 'LISTENING...<span>Speak Now</span>';
-                addLog("Mic is ON. Listening to you...", "SYSTEM");
+                wakeBtn.classList.add('listening'); wakeBtn.innerHTML = 'LISTENING...';
             };
-
             recognition.onresult = function(event) {
                 const transcript = event.results[0][0].transcript;
                 addLog(`[YOU SAID]: "${transcript}"`, "SYSTEM");
-                
-                // Wake word check
                 if(transcript.toLowerCase().includes("gemini")) {
-                    addLog("Wake word 'Gemini' detected! Triggering God Node...", "SYSTEM");
                     sendToBackend(transcript);
                 } else {
-                    addLog("No wake word found. Ignored.", "ERROR");
+                    addLog("No wake word ('Gemini') found. Ignored.", "ERROR");
                 }
             };
-
-            recognition.onerror = function(event) {
-                addLog(`Mic Error: ${event.error}`, "ERROR");
-            };
-
             recognition.onend = function() {
-                wakeBtn.classList.remove('listening');
-                wakeBtn.innerHTML = 'AWAKEN<span>Tap to speak</span>';
+                wakeBtn.classList.remove('listening'); wakeBtn.innerHTML = 'MIC<span>Tap to speak</span>';
             };
-        } else {
-            addLog("WARNING: Your browser doesn't support Voice Mic.", "ERROR");
         }
 
-        function startRealListening() {
-            if(!recognition) return;
-            recognition.start();
-        }
+        function startRealListening() { if(recognition) recognition.start(); }
 
+        // --- 3. Send to Server ---
         async function sendToBackend(command) {
             const apiKey = apiKeyInput.value.trim();
-            if(!apiKey) {
-                addLog("ERROR: API Key is missing! Please paste it above.", "ERROR");
-                return;
-            }
+            if(!apiKey) { addLog("ERROR: API Key is missing!", "ERROR"); return; }
+            addLog("Sending to backend...", "SYSTEM");
 
-            addLog("Sending command to Render Server...", "SYSTEM");
+            // सिस्टम चेक (self_update या generate_game)
+            let target = command.includes("self_update") ? "self_update" : "generate_game";
 
             try {
-                // Sending real data to your main.py /execute route
                 const response = await fetch('/execute', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         api_vault: { "gemini": [apiKey] },
-                        target_system: "generate_game",
+                        target_system: target,
                         directive: command,
-                        master_pin: "7777" // The master pin from your main.py
+                        master_pin: "7777"
                     })
                 });
                 
@@ -173,4 +191,5 @@
         }
     </script>
 </body>
-</html>
+    </html>
+    
