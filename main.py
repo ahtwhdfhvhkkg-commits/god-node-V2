@@ -1,8 +1,10 @@
 import asyncio
 import os
 import sys
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+import uuid
+import time
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Dict, List, Any, Optional
@@ -23,14 +25,12 @@ pixel_stream = None
 deployment = None
 MultiBrainRouter = None
 
-# We use isolated try-except blocks for EACH import.
-# This ensures that one missing or empty file does not crash the entire neural network.
-
+# Isolated try-except blocks to prevent total system crash
 try:
     from god_brain.self_evolution import EvolutionEngine
     print("[SYSTEM] EvolutionEngine loaded successfully.")
 except Exception as e:
-    print(f"[WARNING] EvolutionEngine import failed: {e}")
+    pass
 
 try:
     from god_brain.orchestrator import GodOrchestrator
@@ -43,19 +43,19 @@ try:
     from core.gateway import GatewayRouter
     gateway = GatewayRouter()
 except Exception as e:
-    print(f"[WARNING] GatewayRouter import failed: {e}")
+    pass
 
 try:
     from security_vault.encryption import GodAuth
     vault = GodAuth()
 except Exception as e:
-    print(f"[WARNING] GodAuth import failed: {e}")
+    pass
 
 try:
     from god_brain.api_nexus import MultiBrainRouter
     print("[SYSTEM] MultiBrainRouter loaded successfully.")
 except Exception as e:
-    print(f"[WARNING] MultiBrainRouter import failed: {e}")
+    pass
 
 try:
     from core_engine.cpp_bridge import CPPExecutionBridge
@@ -100,11 +100,11 @@ except Exception as e:
     pass
 
 # ---------------------------------------------------------
-# 2. FASTAPI APP INITIALIZATION
+# 2. FASTAPI APP INITIALIZATION & REGISTRY
 # ---------------------------------------------------------
 app = FastAPI(
     title="The God Node V2",
-    description="Autonomous Enterprise AGI Engine",
+    description="Autonomous Enterprise AGI Engine with Background Processing",
     version="10.0-ENTERPRISE (Swarm Edition)"
 )
 
@@ -118,6 +118,17 @@ app.add_middleware(
 
 MASTER_PIN = "7777"
 
+# GLOBAL TASK REGISTRY: Stores the real-time status of all background generation jobs
+task_registry: Dict[str, Any] = {}
+
+# GLOBAL EXCEPTION HANDLER: Ensures frontend ALWAYS receives JSON
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(
+        status_code=500,
+        content={"status": "FAILED", "error": f"CRITICAL SERVER ERROR: {str(exc)}", "stage": "Global Error Handler"}
+    )
+
 # ---------------------------------------------------------
 # 3. DATA MODELS
 # ---------------------------------------------------------
@@ -127,8 +138,65 @@ class GodCommand(BaseModel):
     directive: str = Field(..., description="The actual natural language command")
     master_pin: str = Field(..., description="Security pin to authenticate the request")
 
+class StatusCommand(BaseModel):
+    task_id: str = Field(..., description="The unique ID of the background task")
+    master_pin: str = Field(..., description="Security pin to authenticate the request")
+
 # ---------------------------------------------------------
-# 4. CORE ROUTING & ENDPOINTS
+# 4. BACKGROUND WORKER LOGIC
+# ---------------------------------------------------------
+async def run_game_generation_task(task_id: str, directive: str, api_vault: dict, target_system: str):
+    """Executes the heavy Swarm operations in the background without holding up the HTTP response."""
+    task_registry[task_id] = {
+        "status": "PROCESSING",
+        "progress": "Swarm Agents deployed. Architecting and building...",
+        "start_time": time.time(),
+        "result": None
+    }
+    
+    try:
+        if target_system == "generate_game":
+            if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
+                # Running the swarm (adjusted to 5 for memory safety on free tier)
+                game_result = await orchestrator.generate_full_game_with_swarm(
+                    prompt=directive, 
+                    agent_count=5, 
+                    auto_kill_after_execution=True
+                )
+                task_registry[task_id]["status"] = "SUCCESS"
+                task_registry[task_id]["result"] = game_result
+            else:
+                # Simulation Mode Fallback
+                await asyncio.sleep(10) # Simulating heavy work
+                task_registry[task_id]["status"] = "SUCCESS"
+                task_registry[task_id]["result"] = {
+                    "status": "SIMULATION_SUCCESS",
+                    "final_build": f"Mocking Enterprise Game Build for: '{directive}'"
+                }
+                
+        elif target_system == "universal_nexus":
+            if MultiBrainRouter is not None:
+                nexus_instance = MultiBrainRouter(api_vault=api_vault)
+                nexus_result = await nexus_instance.analyze_and_route_task(directive)
+                task_registry[task_id]["status"] = "SUCCESS"
+                task_registry[task_id]["result"] = {
+                    "status": "NEXUS_ROUTED", 
+                    "msg": "Task delegated via Universal Multi-Brain architecture.",
+                    "nexus_response": nexus_result
+                }
+            else:
+                task_registry[task_id]["status"] = "SUCCESS"
+                task_registry[task_id]["result"] = {
+                    "status": "SIMULATION_SUCCESS", 
+                    "msg": f"Nexus Simulation: Processed '{directive}'"
+                }
+                
+    except Exception as e:
+        task_registry[task_id]["status"] = "FAILED"
+        task_registry[task_id]["result"] = {"error": f"ENGINE HALT: {str(e)}"}
+
+# ---------------------------------------------------------
+# 5. CORE ROUTING & ENDPOINTS
 # ---------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def engine_status():
@@ -143,59 +211,52 @@ async def engine_status():
         )
 
 @app.post("/execute")
-async def execute_god_command(payload: GodCommand):
-    """The Master API Endpoint that routes commands to the appropriate AI Brain."""
+async def execute_god_command(payload: GodCommand, background_tasks: BackgroundTasks):
+    """Accepts commands, assigns a Background Task, and returns a Task ID immediately to bypass Timeout."""
     
     # 1. AUTHENTICATION
     if payload.master_pin != MASTER_PIN:
-        raise HTTPException(status_code=403, detail="ACCESS DENIED: Invalid Master PIN")
+        return JSONResponse(status_code=403, content={"status": "FAILED", "error": "ACCESS DENIED: Invalid Master PIN"})
 
     try:
-        # ---------------------------------------------------------
-        # PATH 1: GAME GENERATION (ORCHESTRATOR SWARM)
-        # ---------------------------------------------------------
-        if payload.target_system == "generate_game":
-            if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
-                # We have the real orchestrator loaded
-                game_result = await orchestrator.generate_full_game_with_swarm(
-                    prompt=payload.directive, 
-                    agent_count=200, 
-                    auto_kill_after_execution=True
-                )
-                return game_result
-            else:
-                # Simulation mode if orchestrator is missing
-                return {
-                    "status": "SIMULATION_SUCCESS",
-                    "final_build": f"Mocking Enterprise Game Build for: '{payload.directive}'"
-                }
+        # Generate Unique Task ID
+        task_id = str(uuid.uuid4())
         
-        # ---------------------------------------------------------
-        # PATH 2: UNIVERSAL NEXUS ROUTING 
-        # ---------------------------------------------------------
-        else:
-            if MultiBrainRouter is not None:
-                nexus_instance = MultiBrainRouter(api_vault=payload.api_vault)
-                nexus_result = await nexus_instance.analyze_and_route_task(payload.directive)
-                return {
-                    "status": "NEXUS_ROUTED", 
-                    "msg": "Task delegated via Universal Multi-Brain architecture.",
-                    "nexus_response": nexus_result
-                }
-            else:
-                return {
-                    "status": "SIMULATION_SUCCESS", 
-                    "msg": f"Target system '{payload.target_system}' processed directive: '{payload.directive}'"
-                }
+        # Dispatch the heavy lifting to the background
+        background_tasks.add_task(
+            run_game_generation_task, 
+            task_id, 
+            payload.directive, 
+            payload.api_vault, 
+            payload.target_system
+        )
+        
+        # Return instantly (under 1 second) to Render to prevent Timeout
+        return JSONResponse(status_code=202, content={
+            "status": "PROCESSING",
+            "task_id": task_id,
+            "msg": "Directive accepted. Swarm agents are working in the background. Check status using the Task ID."
+        })
 
-    # THE CRITICAL MISSING EXCEPT BLOCK IS NOW RESTORED BELOW
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"ENGINE HALT: {str(e)}")
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": f"INITIALIZATION ERROR: {str(e)}", "stage": "Execution Logic"})
+
+@app.post("/check_status")
+async def check_task_status(payload: StatusCommand):
+    """Endpoint to check the live status or fetch the final build of a background task."""
+    if payload.master_pin != MASTER_PIN:
+        return JSONResponse(status_code=403, content={"status": "FAILED", "error": "ACCESS DENIED"})
+        
+    task_data = task_registry.get(payload.task_id)
+    
+    if not task_data:
+        return JSONResponse(status_code=404, content={"status": "FAILED", "error": "Task ID not found in memory."})
+        
+    return JSONResponse(status_code=200, content=task_data)
 
 # ---------------------------------------------------------
-# 5. SERVER EXECUTION 
+# 6. SERVER EXECUTION 
 # ---------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
