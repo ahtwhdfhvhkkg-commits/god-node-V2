@@ -2,194 +2,257 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>God Node V2 - Command Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOD NODE V2 - COMMAND CENTER</title>
     <style>
-        :root {
-            --neon-green: #00ffcc;
-            --dark-bg: #0a0a0f;
-            --terminal-bg: #050508;
-            --danger-red: #ff003c;
-        }
+        /* Strict Hacker Neon-Green & Black Theme */
         body {
-            background-color: var(--dark-bg); color: var(--neon-green);
-            font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden;
+            background-color: #050505;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        h1 { text-shadow: 0 0 10px var(--neon-green); margin-bottom: 5px; }
-        .status-badge {
-            background: rgba(0, 255, 204, 0.1); border: 1px solid var(--neon-green);
-            padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-bottom: 15px;
+        h1 {
+            text-shadow: 0 0 15px #00ffcc;
+            margin-bottom: 5px;
         }
-        
-        /* API KEY BOX */
-        .api-box { width: 100%; max-width: 320px; margin-bottom: 15px; }
-        .api-box input {
-            width: 100%; padding: 10px; background: var(--terminal-bg);
-            border: 1px solid var(--neon-green); color: var(--neon-green);
-            font-family: monospace; border-radius: 5px; text-align: center;
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: #0a0a0f;
+            border: 1px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 20px;
         }
-
-        /* MANUAL TEXT COMMAND BOX (NEW) */
-        .command-box {
-            width: 100%; max-width: 320px; display: flex; margin-bottom: 20px;
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px dashed #004433;
         }
-        .command-box input {
-            flex-grow: 1; padding: 10px; background: var(--terminal-bg);
-            border: 1px solid var(--neon-green); color: #fff; font-family: monospace;
-            border-radius: 5px 0 0 5px; outline: none;
+        h3 {
+            margin-top: 0;
+            color: #00ffa0;
         }
-        .command-box button {
-            padding: 10px 15px; background: rgba(0, 255, 204, 0.2);
-            border: 1px solid var(--neon-green); color: var(--neon-green);
-            font-weight: bold; cursor: pointer; border-radius: 0 5px 5px 0;
-            transition: 0.2s;
+        input, select, button {
+            background: #020202;
+            color: #00ffcc;
+            border: 1px solid #00ffcc;
+            padding: 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            border-radius: 4px;
         }
-        .command-box button:active { background: var(--neon-green); color: #000; }
-
-        /* MASSIVE AWAKEN BUTTON */
-        .wake-btn {
-            width: 120px; height: 120px; border-radius: 50%; background: transparent;
-            border: 3px solid var(--neon-green); color: var(--neon-green);
-            font-size: 1rem; font-weight: bold; cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.4), inset 0 0 20px rgba(0, 255, 204, 0.2);
-            transition: all 0.2s; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        input:focus, select:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
         }
-        .wake-btn:active { transform: scale(0.95); }
-        .wake-btn span { font-size: 0.6rem; margin-top: 10px; opacity: 0.7; }
-        
-        .listening {
-            border-color: var(--danger-red) !important; color: var(--danger-red) !important;
-            box-shadow: 0 0 30px rgba(255, 0, 60, 0.6), inset 0 0 20px rgba(255, 0, 60, 0.4);
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            background: #002211;
+            transition: all 0.3s ease;
         }
-
-        /* LIVE TERMINAL */
+        button:hover {
+            background: #00ffcc;
+            color: #000;
+            box-shadow: 0 0 15px #00ffcc;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .input-group input {
+            flex-grow: 1;
+        }
         .terminal {
-            margin-top: 20px; width: 100%; max-width: 400px; height: 250px;
-            background-color: var(--terminal-bg); border: 1px solid #333;
-            border-left: 3px solid var(--neon-green); padding: 10px;
-            overflow-y: auto; font-size: 0.85rem;
+            background: #000;
+            border: 1px solid #004433;
+            padding: 20px;
+            height: 350px;
+            overflow-y: auto;
+            font-size: 14px;
+            color: #00ffaa;
+            line-height: 1.5;
+            box-shadow: inset 0 0 10px #000;
         }
-        .log-entry { margin-bottom: 5px; word-wrap: break-word; }
-        .log-time { color: #888; margin-right: 10px; }
+        .vault-list {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #66aa88;
+        }
+        .vault-item {
+            color: #00ffcc;
+            font-weight: bold;
+            background: #003322;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
 
     <h1>GOD NODE V2</h1>
-    <div class="status-badge">🟢 NEURAL LINK ACTIVE</div>
+    <p style="margin-top: 0; letter-spacing: 2px;">● NEURAL LINK ACTIVE</p>
 
-    <!-- API KEY INPUT -->
-    <div class="api-box">
-        <input type="password" id="geminiApiKey" placeholder="PASTE GEMINI API KEY HERE">
-    </div>
+    <div class="container">
+        <!-- API VAULT SECTION -->
+        <div class="section">
+            <h3>[ SECURE API VAULT ]</h3>
+            <div class="input-group">
+                <select id="apiProvider">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI (GPT-4)</option>
+                    <option value="openrouter">OpenRouter</option>
+                    <option value="elevenlabs">ElevenLabs (Audio)</option>
+                    <option value="claude">Anthropic Claude</option>
+                    <option value="gdrive">Google Drive (Storage)</option>
+                </select>
+                <input type="password" id="apiKeyInput" placeholder="Enter API Key here to load into memory...">
+                <button onclick="addApiKey()">ADD KEY</button>
+            </div>
+            <div id="vaultDisplay" class="vault-list">Keys Loaded: [ None ]</div>
+        </div>
 
-    <!-- MANUAL TEXT COMMAND INPUT (THE FIX) -->
-    <div class="command-box">
-        <input type="text" id="manualCommand" placeholder="> Type your command here...">
-        <button onclick="sendManualCommand()">EXECUTE</button>
-    </div>
+        <!-- COMMAND SECTION -->
+        <div class="section">
+            <h3>[ DIRECTIVE INPUT ]</h3>
+            <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+                <input type="password" id="masterPin" placeholder="Master PIN (7777)" value="7777" style="width: 200px;">
+                <select id="targetSystem" style="flex-grow: 1;">
+                    <option value="generate_game">Target: Game Generation Swarm</option>
+                    <option value="universal_nexus">Target: Multi-Brain Routing Nexus</option>
+                </select>
+            </div>
 
-    <!-- VOICE MIC BUTTON -->
-    <button class="wake-btn" id="wakeBtn" onclick="startRealListening()">
-        MIC
-        <span>Tap to speak</span>
-    </button>
+            <div class="input-group">
+                <input type="text" id="directiveInput" placeholder="> Type your God Command here...">
+                <button onclick="executeCommand()" style="width: 150px; font-size: 16px;">EXECUTE</button>
+            </div>
+        </div>
 
-    <div class="terminal" id="terminalBox">
-        <div class="log-entry"><span class="log-time">[SYSTEM]</span><span style="color: #00ffcc;"> Keyboard & Voice Ready.</span></div>
+        <!-- TERMINAL SECTION -->
+        <div class="section" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+            <h3>[ LIVE TERMINAL OUTPUT ]</h3>
+            <div class="terminal" id="terminalOutput">
+                > System initialized. Awaiting API keys and directives...
+            </div>
+        </div>
     </div>
 
     <script>
-        const terminal = document.getElementById('terminalBox');
-        const wakeBtn = document.getElementById('wakeBtn');
-        const apiKeyInput = document.getElementById('geminiApiKey');
-        const cmdInput = document.getElementById('manualCommand');
-        
-        // --- 1. Keyboard Typing Logic ---
-        cmdInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") { // Enter दबाते ही कमांड सेंड हो जाएगी
-                event.preventDefault();
-                sendManualCommand();
-            }
-        });
+        // Global API Vault memory structure
+        let apiVault = {
+            "gemini": [], "openai": [], "openrouter": [], 
+            "elevenlabs": [], "claude": [], "gdrive": []
+        };
 
-        function sendManualCommand() {
-            const commandText = cmdInput.value.trim();
-            if(!commandText) return;
-            
-            addLog(`[YOU TYPED]: "${commandText}"`, "SYSTEM");
-            
-            // अगर तुम खुद टाइप कर रहे हो तो 'Hai Gemini' बोलने की ज़रूरत नहीं
-            let finalCommand = commandText;
-            if(!finalCommand.toLowerCase().includes("gemini")) {
-                finalCommand = "Hai Gemini, " + finalCommand; 
-            }
-            
-            sendToBackend(finalCommand);
-            cmdInput.value = ""; // बॉक्स खाली कर दो
+        const terminal = document.getElementById('terminalOutput');
+        const vaultDisplay = document.getElementById('vaultDisplay');
+
+        // Terminal Logging Function
+        function logToTerminal(message, isError = false) {
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const color = isError ? '#ff3333' : '#00ffcc';
+            terminal.innerHTML += `<br><span style="color: ${color}">[${timestamp}] ${message}</span>`;
+            terminal.scrollTop = terminal.scrollHeight;
         }
 
-        // --- 2. Voice Mic Logic ---
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+        // Add API Key to Vault
+        function addApiKey() {
+            const provider = document.getElementById('apiProvider').value;
+            const keyInput = document.getElementById('apiKeyInput');
+            const key = keyInput.value.trim();
 
-        if(recognition) {
-            recognition.continuous = false; recognition.lang = 'en-US';
-            recognition.onstart = function() {
-                wakeBtn.classList.add('listening'); wakeBtn.innerHTML = 'LISTENING...';
-            };
-            recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
-                addLog(`[YOU SAID]: "${transcript}"`, "SYSTEM");
-                if(transcript.toLowerCase().includes("gemini")) {
-                    sendToBackend(transcript);
+            if (key) {
+                if (!apiVault[provider]) apiVault[provider] = [];
+                
+                if (!apiVault[provider].includes(key)) {
+                    apiVault[provider].push(key);
+                    keyInput.value = ''; // Clear input for safety
+                    updateVaultDisplay();
+                    logToTerminal(`> SUCCESS: 1x Key securely injected for [${provider.toUpperCase()}]`);
                 } else {
-                    addLog("No wake word ('Gemini') found. Ignored.", "ERROR");
+                    logToTerminal(`> WARNING: Key already exists in memory for [${provider.toUpperCase()}]`, true);
                 }
-            };
-            recognition.onend = function() {
-                wakeBtn.classList.remove('listening'); wakeBtn.innerHTML = 'MIC<span>Tap to speak</span>';
-            };
+            } else {
+                logToTerminal('> ERROR: Cannot inject an empty key.', true);
+            }
         }
 
-        function startRealListening() { if(recognition) recognition.start(); }
+        // Update UI Vault Display
+        function updateVaultDisplay() {
+            let loaded = [];
+            for (const [provider, keys] of Object.entries(apiVault)) {
+                if (keys.length > 0) {
+                    loaded.push(`<span class="vault-item">${provider.toUpperCase()} (${keys.length})</span>`);
+                }
+            }
+            vaultDisplay.innerHTML = loaded.length > 0 ? `Keys Loaded: ${loaded.join(' ')}` : 'Keys Loaded: [ None ]';
+        }
 
-        // --- 3. Send to Server ---
-        async function sendToBackend(command) {
-            const apiKey = apiKeyInput.value.trim();
-            if(!apiKey) { addLog("ERROR: API Key is missing!", "ERROR"); return; }
-            addLog("Sending to backend...", "SYSTEM");
+        // Execute Command Sequence
+        async function executeCommand() {
+            const pin = document.getElementById('masterPin').value;
+            const target = document.getElementById('targetSystem').value;
+            const directive = document.getElementById('directiveInput').value;
 
-            // सिस्टम चेक (self_update या generate_game)
-            let target = command.includes("self_update") ? "self_update" : "generate_game";
+            if (!directive) {
+                logToTerminal('> ERROR: Directive cannot be empty.', true);
+                return;
+            }
+
+            logToTerminal(`> Initializing Neural Link to target [${target}]...`);
+            logToTerminal(`> Executing Directive: "${directive}"`);
+
+            const payload = {
+                api_vault: apiVault,
+                target_system: target,
+                directive: directive,
+                master_pin: pin
+            };
 
             try {
-                const response = await fetch('/execute', {
+                // Determine the correct backend URL (handles localhost vs Render domain)
+                const backendUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+                                   ? 'http://localhost:8000/execute' 
+                                   : '/execute';
+
+                const response = await fetch(backendUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        api_vault: { "gemini": [apiKey] },
-                        target_system: target,
-                        directive: command,
-                        master_pin: "7777"
-                    })
+                    body: JSON.stringify(payload)
                 });
-                
-                const data = await response.json();
-                addLog(`[GOD NODE]: ${JSON.stringify(data)}`, "SYSTEM");
-            } catch (err) {
-                addLog(`[SERVER ERROR]: ${err.message}`, "ERROR");
-            }
-        }
 
-        function addLog(message, type="SYSTEM") {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            const color = type === 'ERROR' ? '#ff003c' : '#00ffcc';
-            terminal.innerHTML += `<div class="log-entry"><span class="log-time">[${time}]</span><span style="color: ${color};"> ${message}</span></div>`;
-            terminal.scrollTop = terminal.scrollHeight;
+                // THE JSON FIX: Safely parse text first to prevent crash on Render Timeout
+                const textResult = await response.text(); 
+                
+                try {
+                    const jsonResult = JSON.parse(textResult);
+                    logToTerminal(`> [SERVER RESPONSE SUCCESS]:`);
+                    // Beautify JSON output in the terminal
+                    const formattedJson = JSON.stringify(jsonResult, null, 2)
+                        .replace(/\n/g, '<br>')
+                        .replace(/ /g, '&nbsp;');
+                    logToTerminal(formattedJson);
+                } catch (e) {
+                    // This catches the exact HTML Timeout Error you were facing
+                    logToTerminal(`> [SERVER TIMEOUT / CRASH]: The server took too long and Render cut the connection.`, true);
+                    logToTerminal(`> [RAW OUTPUT]: ${textResult.substring(0, 100)}...`, true);
+                }
+
+            } catch (error) {
+                logToTerminal(`> [NETWORK FATAL ERROR]: ${error.message}`, true);
+            }
         }
     </script>
 </body>
     </html>
-    
+                    
