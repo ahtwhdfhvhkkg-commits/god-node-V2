@@ -31,9 +31,8 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------
-# 2. गॉड नोड इनिशियलाइजेशन (Safeguarded)
+# 2. FULL SYSTEM INITIALIZATION
 # ---------------------------------------------------------
-# Default values ताकि NameError न आए
 vault = cpp_engine = multiplayer_nexus = asset_forge = economy = None
 orchestrator = s3_cloud = pixel_stream = deployment = None
 
@@ -59,7 +58,7 @@ class GodCommand(BaseModel):
     master_pin: str = Field(...)
 
 # ---------------------------------------------------------
-# 3. द गॉड वेब इंटरफ़ेस & कमांड राऊटर
+# 3. COMMAND CENTER ROUTER
 # ---------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def engine_status():
@@ -76,7 +75,6 @@ async def execute_god_command(payload: GodCommand):
 
     try:
         if payload.target_system == "generate_game":
-            # Checking if orchestrator actually exists and is not None
             if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
                 game_result = await orchestrator.generate_full_game_with_swarm(
                     prompt=payload.directive, agent_count=200, auto_kill_after_execution=True
@@ -90,24 +88,24 @@ async def execute_god_command(payload: GodCommand):
         
         elif payload.target_system == "self_update":
             # ---------------------------------------------------------
-            # THE REAL UPGRADER UNLOCKED
+            # THE REAL UPGRADER (SELF-EVOLUTION) UNLOCKED
             # ---------------------------------------------------------
-            # 1. API VAULT से तुम्हारी GEMINI KEY निकालना
             api_keys = payload.api_vault.get("gemini", [])
             if not api_keys or not api_keys[0]:
-                return {"status": "ERROR", "msg": "CRITICAL: Gemini API Key is missing in the Vault!"}
+                return {"status": "ERROR", "msg": "CRITICAL: Gemini API Key missing in Vault!"}
             
-            gemini_key = api_keys[0]
-
-            # 2. असली इवोल्यूशन इंजन को जगाना
             try:
-                # अभी हम इसे टेस्ट मोड में अनलॉक कर रहे हैं ताकि पता चले API Key पास हो गई
+                # सीधे तुम्हारे सेल्फ-अपग्रेडर (EvolutionEngine) को कमांड जा रही है
+                evolution = EvolutionEngine(api_gateway={"gemini": api_keys[0]})
+                result = await evolution.evolve_file("index.html", payload.directive)
+                
                 return {
-                    "status": "SYSTEM_UNLOCKED", 
-                    "msg": f"Key verified! AI Engine ready to build: {payload.directive}",
-                    "action": "EVOLUTION_PIPELINE_ACTIVE"
+                    "status": "EVOLUTION_SUCCESS", 
+                    "msg": "The AI Agent has successfully modified the code!",
+                    "details": result
                 }
             except Exception as e:
+                # अगर कोई भी एरर आया तो सर्वर क्रैश नहीं होगा, बल्कि एरर मैसेज दिखा देगा
                 return {"status": "ERROR", "msg": f"Evolution failed: {str(e)}"}
 
         else:
@@ -119,4 +117,4 @@ async def execute_god_command(payload: GodCommand):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-    
+        
