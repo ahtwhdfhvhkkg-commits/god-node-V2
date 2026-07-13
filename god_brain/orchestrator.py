@@ -2,6 +2,7 @@ import asyncio
 import logging
 import json
 import time
+import inspect
 from typing import Dict, Any, List
 
 # Importing the Swarm Agents
@@ -25,6 +26,7 @@ class GodOrchestrator:
     Enterprise-Grade Swarm Orchestrator.
     Manages parallel execution of AI agents while strictly adhering to external API rate limits.
     Uses Asyncio Semaphores to prevent HTTP 429 (Too Many Requests) errors.
+    Equipped with Smart Resolver to seamlessly handle both Synchronous and Asynchronous (Coroutine) agents.
     """
     def __init__(self):
         logger.info("Initializing God Node Orchestrator... Waking up Manager Agents.")
@@ -40,6 +42,23 @@ class GodOrchestrator:
         self.max_concurrent_agents = 5 
         self.semaphore = asyncio.Semaphore(self.max_concurrent_agents)
 
+    async def _resolve_agent_call(self, agent_method, *args, **kwargs):
+        """
+        THE MAGIC FIX: Automatically opens 'closed boxes' (coroutines) returned by agents.
+        Prevents the 'coroutine object has no attribute get' error.
+        """
+        # 1. Execute the method dynamically based on its type
+        if inspect.iscoroutinefunction(agent_method):
+            result = await agent_method(*args, **kwargs)
+        else:
+            result = await asyncio.to_thread(agent_method, *args, **kwargs)
+            
+        # 2. Double-check: If the agent returned an un-awaited coroutine, await it here
+        if inspect.isawaitable(result):
+            result = await result
+            
+        return result
+
     async def _execute_swarm_task_safely(self, task_id: int, agent, task_data: str, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
         Executes a single agent task safely behind a Semaphore to prevent API flooding.
@@ -53,11 +72,8 @@ class GodOrchestrator:
                 try:
                     logger.info(f"[SWARM TASK #{task_id}] Executing via {agent.role_name}...")
                     
-                    # Ensure we handle both sync and async agent implementations gracefully
-                    if asyncio.iscoroutinefunction(agent.perform_role):
-                        result = await agent.perform_role(task_data, **kwargs)
-                    else:
-                        result = await asyncio.to_thread(agent.perform_role, task_data, **kwargs)
+                    # Use the smart resolver to get the actual dictionary result
+                    result = await self._resolve_agent_call(agent.perform_role, task_data, **kwargs)
                         
                     return {"task_id": task_id, "status": "SUCCESS", "result": result}
                 
@@ -82,13 +98,10 @@ class GodOrchestrator:
             # STEP 1: THE DIRECTOR (Strategic Planning)
             # ---------------------------------------------------------
             logger.info("STEP 1: Director is planning the architecture...")
-            if asyncio.iscoroutinefunction(self.director.perform_role):
-                game_plan = await self.director.perform_role(prompt)
-            else:
-                game_plan = await asyncio.to_thread(self.director.perform_role, prompt)
+            game_plan = await self._resolve_agent_call(self.director.perform_role, prompt)
             
             if not game_plan or game_plan.get("status") == "FAILED":
-                raise ValueError(f"Director Agent failed to create a valid plan: {game_plan.get('error')}")
+                raise ValueError(f"Director Agent failed to create a valid plan: {game_plan.get('error', 'Unknown Error')}")
 
             # ---------------------------------------------------------
             # STEP 2 & 3: THE SWARM (Asset & Map Generation in Parallel)
@@ -136,11 +149,7 @@ class GodOrchestrator:
             # ---------------------------------------------------------
             logger.info("STEP 4: Injecting Physics and Gravity logic...")
             physics_context = {"map_data": "compiled_swarm_map", "assets": len(successful_assets)}
-            
-            if asyncio.iscoroutinefunction(self.physics.perform_role):
-                physics_logic = await self.physics.perform_role(environment_details=physics_context)
-            else:
-                physics_logic = await asyncio.to_thread(self.physics.perform_role, environment_details=physics_context)
+            physics_logic = await self._resolve_agent_call(self.physics.perform_role, environment_details=physics_context)
 
             # ---------------------------------------------------------
             # STEP 5: ASSEMBLY
@@ -159,10 +168,7 @@ class GodOrchestrator:
             # STEP 6: QA TESTING & AUTO-HEALING
             # ---------------------------------------------------------
             logger.info("STEP 6: QA Tester is analyzing the build for stability...")
-            if asyncio.iscoroutinefunction(self.qa_tester.perform_role):
-                final_game = await self.qa_tester.perform_role(generated_code=raw_code_string, error_logs=None)
-            else:
-                final_game = await asyncio.to_thread(self.qa_tester.perform_role, generated_code=raw_code_string, error_logs=None)
+            final_game = await self._resolve_agent_call(self.qa_tester.perform_role, generated_code=raw_code_string, error_logs=None)
 
             execution_time = round(time.time() - start_time, 2)
             logger.info(f"PIPELINE COMPLETE! Total execution time: {execution_time} seconds.")
