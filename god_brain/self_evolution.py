@@ -1302,7 +1302,7 @@ class EvolutionEngine:
         return await self._engine.evolve_repository()
     
     async def scan_only(self) -> Tuple[List[ModuleAnalysis], Dict[str, Any]]:
-        """
+         """
         Scan repository without generation
         
         Returns:
@@ -1310,7 +1310,27 @@ class EvolutionEngine:
         """
         return self._engine.scanner.scan_repository()
 
-
+    async def force_upgrade_system(self, files_dict: Dict[str, str], commit_message: str = "God Node Auto-Evolution Upgrade") -> Dict[str, Any]:
+        """Bypasses PR and directly pushes AI-generated code to the main branch."""
+        try:
+            logger.info(f"Initiating DIRECT system upgrade for {len(files_dict)} files...")
+            if not self._engine.github:
+                return {"status": "FAILED", "error": "GitHub credentials missing."}
+            
+            success = await self._engine.github.commit_files(
+                branch_name="main", 
+                files=files_dict, 
+                commit_message=commit_message
+            )
+            
+            if success:
+                return {"status": "SUCCESS", "message": "Code pushed successfully to GitHub 'main' branch."}
+            else:
+                return {"status": "FAILED", "error": "GitHub direct push failed."}
+        except Exception as e:
+            return {"status": "FAILED", "error": str(e)}
+        
+   
 # ============================================================================
 # USAGE
 # ============================================================================
