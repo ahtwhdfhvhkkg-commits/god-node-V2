@@ -80,6 +80,17 @@ async def run_game_generation_task(task_id: str, directive: str, api_vault: dict
     
     try:
         if target_system == "generate_game":
+            # --- THE MISSING LINK: LOADING KEYS INTO GATEWAY ---
+            try:
+                from core.gateway import GatewayRouter
+                # UI से आई हुई Gemini और OpenAI की चाबियों को Gateway के "brain" में डालना
+                brain_keys = api_vault.get("gemini", []) + api_vault.get("openai", [])
+                if brain_keys:
+                    GatewayRouter.load_vault({"brain": brain_keys})
+            except Exception as e:
+                print(f"[WARNING] Gateway key injection failed: {e}")
+            # ---------------------------------------------------
+
             if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
                 game_result = await orchestrator.generate_full_game_with_swarm(prompt=directive, agent_count=5, auto_kill_after_execution=True)
                 task_registry[task_id]["status"] = "SUCCESS"
