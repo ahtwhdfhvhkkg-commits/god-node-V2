@@ -1308,7 +1308,7 @@ class EvolutionEngine:
         Returns:
             Tuple of missing modules and metrics
         """
-        return self._engine.scanner.scan_repository()
+    return self._engine.scanner.scan_repository()
 
     async def force_upgrade_system(self, files_dict: Dict[str, str], commit_message: str = "God Node Auto-Evolution Upgrade") -> Dict[str, Any]:
         """Bypasses PR and directly pushes AI-generated code to the main branch."""
