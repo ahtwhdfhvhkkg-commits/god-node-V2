@@ -4,7 +4,7 @@ import sys
 import uuid
 import time
 import json
-from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -44,6 +44,35 @@ try:
 except Exception as e:
     pass
 
+
+# ---------------------------------------------------------
+# 1.5 NEW ENGINE WIRING (Scheduler, C++ Bridge, Nexus)
+# ---------------------------------------------------------
+master_scheduler = None
+cpp_adapter = None
+nexus = None
+
+try:
+    from simulation_scheduler.config import SchedulerConfig
+    from simulation_scheduler.scheduler import SimulationScheduler
+    from core_engine.cpp_bridge import SimulationCPPAdapter
+    from multiplayer_nexus.sync_server import init_nexus
+    
+    # 1. Init Config & Scheduler
+    engine_config = SchedulerConfig()
+    master_scheduler = SimulationScheduler(engine_config)
+    
+    # 2. Init C++ Bridge (Execution Backend)
+    cpp_adapter = SimulationCPPAdapter(workspace_dir="workspace_cpp")
+    
+    # 3. Init Multiplayer Nexus connected to Scheduler
+    nexus = init_nexus(master_scheduler)
+    
+    print("[SYSTEM] God-Level Engine & Nexus Initialized Successfully. 🚀")
+except Exception as e:
+    print(f"[WARNING] Engine/Nexus initialization failed: {e}")
+
+
 # ---------------------------------------------------------
 # 2. FASTAPI APP INITIALIZATION & REGISTRY
 # ---------------------------------------------------------
@@ -71,6 +100,38 @@ class GodCommand(BaseModel):
 class StatusCommand(BaseModel):
     task_id: str = Field(...)
     master_pin: str = Field(...)
+
+
+# ---------------------------------------------------------
+# 3. ENGINE HEARTBEAT (The Master Game Loop)
+# ---------------------------------------------------------
+async def engine_tick_loop():
+    """यह लूप 60 FPS (Ticks) पर चलेगा और शेड्यूलर से काम निकालकर C++ से करवाएगा"""
+    print("[ENGINE] Master Tick Loop Started... (Awaiting Tasks)")
+    while True:
+        try:
+            if master_scheduler and cpp_adapter:
+                # शेड्यूलर से बैचेस मंगाना
+                batches = master_scheduler.build_batches()
+                for batch in batches:
+                    # C++ ब्रिज के अंदर कोड डालना और रन करना
+                    results = cpp_adapter.execute(batch)
+                    
+                    # (यहाँ हम भविष्य में रिज़ल्ट्स को वापस प्लेयर्स को ब्रॉडकास्ट कर सकते हैं)
+                    if results:
+                        print(f"[C++ EXECUTION SUCCESS]: {results}")
+                        
+        except Exception as e:
+            print(f"[ENGINE ERROR] Tick Loop crashed: {e}")
+            
+        # ~60 Ticks Per Second (मक्खन जैसी स्पीड के लिए)
+        await asyncio.sleep(0.016)
+
+@app.on_event("startup")
+async def startup_event():
+    """सर्वर स्टार्ट होते ही गेम इंजन लूप को बैकग्राउंड में ऑन कर देना"""
+    asyncio.create_task(engine_tick_loop())
+
 
 # ---------------------------------------------------------
 # 4. BACKGROUND WORKER LOGIC
@@ -182,7 +243,34 @@ async def check_task_status(payload: StatusCommand):
         return JSONResponse(status_code=404, content={"status": "FAILED", "error": "Task ID not found."})
     return JSONResponse(status_code=200, content=task_data)
 
+
+# ---------------------------------------------------------
+# 6. MULTIPLAYER WEBSOCKET PORTAL
+# ---------------------------------------------------------
+@app.websocket("/ws/{player_id}")
+async def websocket_endpoint(websocket: WebSocket, player_id: str):
+    """
+    यह वो दरवाज़ा है जिससे दुनिया भर के 30,000+ प्लेयर्स गेम में कनेक्ट होंगे!
+    """
+    if nexus is None:
+        await websocket.close(reason="Multiplayer Nexus is offline.")
+        return
+        
+    await nexus.connect_player(player_id, websocket)
+    try:
+        while True:
+            # प्लेयर से डेटा (movement, shooting etc.) लेना
+            data = await websocket.receive_json()
+            # उसे Nexus को दे देना (जो बाकी प्लेयर्स को बताएगा और C++ से चेक करवाएगा)
+            await nexus.process_action(player_id, data)
+            
+    except WebSocketDisconnect:
+        nexus.disconnect_player(player_id)
+    except Exception as e:
+        print(f"[WEBSOCKET ERROR] Player {player_id}: {e}")
+        nexus.disconnect_player(player_id)
+
 if __name__ == "__main__":
     import uvicorn
+    # 0.0.0.0 का मतलब है यह किसी भी नेटवर्क (Internet) से कनेक्ट हो सकता है
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
