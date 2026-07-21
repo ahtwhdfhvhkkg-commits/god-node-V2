@@ -17,7 +17,6 @@ from fastapi import WebSocket
 # =========================================================
 from simulation_scheduler.types import SimulationTask, SimulationPriority
 from simulation_scheduler.scheduler import SimulationScheduler
-from simulation_scheduler.config import SchedulerConfig
 
 class GodLevelMultiplayerNexus:
     def __init__(self, scheduler: SimulationScheduler = None):
@@ -54,7 +53,7 @@ class GodLevelMultiplayerNexus:
         # 1. खिलाड़ी की नई पोज़िशन/स्टेटस सेव करना
         self.player_states[player_id] = action_data
         
-        # 2. [NEW WIRING] - इंजन को काम सौंपना
+        # 2. [ENGINE WIRING] - इंजन को काम सौंपना
         if self.scheduler:
             # प्लेयर के काम को एक Task बनाकर शेड्यूलर की कतार में डाल देना
             task = SimulationTask(
@@ -96,8 +95,7 @@ class GodLevelMultiplayerNexus:
 # ग्लोबल इंस्टेंस को अभी खाली रखेंगे, इसे main.py में इनिशियलाइज़ करेंगे
 multiplayer_core = None
 
-def init_nexus(scheduler: SimulationScheduler) -> GodLevelMultiplayerNexus:
+def init_nexus(scheduler: SimulationScheduler = None) -> GodLevelMultiplayerNexus:
     global multiplayer_core
     multiplayer_core = GodLevelMultiplayerNexus(scheduler=scheduler)
     return multiplayer_core
-        
