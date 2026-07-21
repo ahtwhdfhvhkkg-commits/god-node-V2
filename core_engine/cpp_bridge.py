@@ -1,6 +1,19 @@
+"""
+core_engine/cpp_bridge.py
+
+This module contains the C++ execution engine and the adapter 
+that connects it directly to the simulation_scheduler.
+"""
+
 import os
 import subprocess
 import uuid
+import json
+from typing import Any, Dict, List
+
+# 1. हमारी नई बनी हुई शेड्यूलर फाइलों से इम्पोर्ट (यह है असली वायरिंग)
+from simulation_scheduler.adapters import ExecutionBackendAdapter
+from simulation_scheduler.types import Batch
 
 class CPPExecutionBridge:
     def __init__(self, workspace_dir="workspace_cpp"):
@@ -73,3 +86,58 @@ class CPPExecutionBridge:
                 os.remove(cpp_file)
             if os.path.exists(exe_file): 
                 os.remove(exe_file)
+
+
+# =====================================================================
+# THE WIRING: यह वो क्लास है जो तुम्हारे शेड्यूलर और C++ ब्रिज को जोड़ेगी
+# =====================================================================
+
+class SimulationCPPAdapter(ExecutionBackendAdapter):
+    """
+    यह प्लग (Adapter) simulation_scheduler से 'Batch' लेगा, 
+    उसे C++ कोड में बदलेगा (या टास्क डेटा पास करेगा), 
+    और CPPExecutionBridge के जरिए सुपर-फास्ट रन करेगा।
+    """
+    
+    def __init__(self, workspace_dir="workspace_cpp"):
+        # शेड्यूलर शुरू होते ही यह C++ इंजन को बैकग्राउंड में ऑन कर देगा
+        self.bridge = CPPExecutionBridge(workspace_dir)
+
+    def execute(self, batch: Batch) -> Any:
+        """
+        यह फंक्शन शेड्यूलर के 'executor.py' द्वारा अपने आप बुलाया जाएगा।
+        """
+        results = []
+        
+        # बैच के अंदर जितने भी टास्क्स (Tasks) हैं, उन पर लूप चलाना
+        for task in batch.tasks:
+            
+            # (भविष्य का लॉजिक) यहाँ हम टास्क के पेलोड के हिसाब से C++ कोड जनरेट करेंगे।
+            # अभी के लिए एक डमी C++ कोड जो दिखाएगा कि कनेक्शन हो गया है:
+            cpp_code_to_run = f"""
+            #include <iostream>
+            #include <string>
+            using namespace std;
+            
+            int main() {{
+                cout << "{{" << "\\\"task_id\\\": \\\"" << "{task.task_id}" << "\\\", "
+                     << "\\\"status\\\": \\\"executed_in_cpp\\\"" << "}}" << endl;
+                return 0;
+            }}
+            """
+            
+            # C++ ब्रिज को कोड देना और रन करवाना
+            execution_result = self.bridge.compile_and_run(
+                cpp_code=cpp_code_to_run,
+                execution_timeout=15
+            )
+            
+            # रिज़ल्ट को सेव करना
+            results.append({
+                "task_id": task.task_id,
+                "engine_response": execution_result
+            })
+            
+        # शेड्यूलर को वापस रिजल्ट भेज देना ताकि वो मेमोरी में सेव (Cache) कर सके
+        return results
+
