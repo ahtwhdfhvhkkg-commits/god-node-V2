@@ -2,8 +2,7 @@ fastapi
 uvicorn
 pydantic
 boto3
-aiortc
+aiofiles
 websockets
 python-multipart
 aiohttp
-
