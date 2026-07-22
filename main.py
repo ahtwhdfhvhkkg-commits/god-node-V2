@@ -74,6 +74,20 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
+# 1.6 ECONOMY & SECURITY VAULT WIRING (NEW)
+# ---------------------------------------------------------
+economy_engine = None
+
+try:
+    # यह इम्पोर्ट तुम्हारे economy_vault फोल्डर से है
+    from economy_vault.billing_core import GodEconomyEngine
+    economy_engine = GodEconomyEngine()
+    print("[SYSTEM] Economy & Security Vault Initialized. Money is safe. 💰")
+except Exception as e:
+    print(f"[WARNING] Economy initialization failed: {e}")
+
+
+# ---------------------------------------------------------
 # 2. FASTAPI APP INITIALIZATION & REGISTRY
 # ---------------------------------------------------------
 app = FastAPI(
@@ -101,6 +115,12 @@ class StatusCommand(BaseModel):
     task_id: str = Field(...)
     master_pin: str = Field(...)
 
+# इकोनॉमी के लिए नया पेलोड मॉडल
+class PaymentPayload(BaseModel):
+    player_id: str = Field(...)
+    amount: int = Field(...)
+    method: str = Field(...)
+
 
 # ---------------------------------------------------------
 # 3. ENGINE HEARTBEAT (The Master Game Loop)
@@ -117,7 +137,6 @@ async def engine_tick_loop():
                     # C++ ब्रिज के अंदर कोड डालना और रन करना
                     results = cpp_adapter.execute(batch)
                     
-                    # (यहाँ हम भविष्य में रिज़ल्ट्स को वापस प्लेयर्स को ब्रॉडकास्ट कर सकते हैं)
                     if results:
                         print(f"[C++ EXECUTION SUCCESS]: {results}")
                         
@@ -141,16 +160,13 @@ async def run_game_generation_task(task_id: str, directive: str, api_vault: dict
     
     try:
         if target_system == "generate_game":
-            # --- THE MISSING LINK: LOADING KEYS INTO GATEWAY ---
             try:
                 from core.gateway import GatewayRouter
-                # UI से आई हुई Gemini और OpenAI की चाबियों को Gateway के "brain" में डालना
                 brain_keys = api_vault.get("gemini", []) + api_vault.get("openai", [])
                 if brain_keys:
                     GatewayRouter.load_vault({"brain": brain_keys})
             except Exception as e:
                 print(f"[WARNING] Gateway key injection failed: {e}")
-            # ---------------------------------------------------
 
             if orchestrator and hasattr(orchestrator, "generate_full_game_with_swarm"):
                 game_result = await orchestrator.generate_full_game_with_swarm(prompt=directive, agent_count=5, auto_kill_after_execution=True)
@@ -175,7 +191,6 @@ async def run_game_generation_task(task_id: str, directive: str, api_vault: dict
             if MultiBrainRouter is not None and EvolutionEngine is not None:
                 nexus_instance = MultiBrainRouter(api_vault=api_vault)
                 
-                # Strict JSON Prompt for AI
                 json_prompt = (
                     f"Act as the Lead Backend Architect. Output ONLY a valid JSON object. "
                     f"Keys must be the exact file paths (e.g., 'main.py' or 'cloud_storage/gdrive_manager.py'). "
@@ -194,7 +209,6 @@ async def run_game_generation_task(task_id: str, directive: str, api_vault: dict
                         ai_text = ai_text.split("```")[1].split("```")[0].strip()
                         
                     new_files_dict = json.loads(ai_text)
-                    
                     evo_engine = EvolutionEngine()
                     push_result = await evo_engine.force_upgrade_system(new_files_dict)
                     
@@ -211,6 +225,7 @@ async def run_game_generation_task(task_id: str, directive: str, api_vault: dict
     except Exception as e:
         task_registry[task_id]["status"] = "FAILED"
         task_registry[task_id]["result"] = {"error": f"ENGINE HALT: {str(e)}"}
+
 
 # ---------------------------------------------------------
 # 5. CORE ROUTING & ENDPOINTS
@@ -245,13 +260,32 @@ async def check_task_status(payload: StatusCommand):
 
 
 # ---------------------------------------------------------
+# 5.5 ECONOMY ENDPOINTS (NEW)
+# ---------------------------------------------------------
+@app.post("/economy/buy_pass")
+async def buy_premium_pass(payload: PaymentPayload):
+    """₹3000 वाला पास खरीदने का API"""
+    if not economy_engine:
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": "Economy engine is offline."})
+    
+    result = economy_engine.process_premium_purchase(payload.player_id, payload.amount, payload.method)
+    return JSONResponse(content=result)
+
+@app.get("/economy/ads/{player_id}")
+async def get_player_ads(player_id: str):
+    """चेक करने के लिए कि प्लेयर को 3D Ad दिखाना है या नहीं"""
+    if not economy_engine:
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": "Economy engine is offline."})
+    
+    result = economy_engine.get_ad_payload(player_id)
+    return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------
 # 6. MULTIPLAYER WEBSOCKET PORTAL
 # ---------------------------------------------------------
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
-    """
-    यह वो दरवाज़ा है जिससे दुनिया भर के 30,000+ प्लेयर्स गेम में कनेक्ट होंगे!
-    """
     if nexus is None:
         await websocket.close(reason="Multiplayer Nexus is offline.")
         return
@@ -259,18 +293,15 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
     await nexus.connect_player(player_id, websocket)
     try:
         while True:
-            # प्लेयर से डेटा (movement, shooting etc.) लेना
             data = await websocket.receive_json()
-            # उसे Nexus को दे देना (जो बाकी प्लेयर्स को बताएगा और C++ से चेक करवाएगा)
             await nexus.process_action(player_id, data)
-            
     except WebSocketDisconnect:
         nexus.disconnect_player(player_id)
     except Exception as e:
         print(f"[WEBSOCKET ERROR] Player {player_id}: {e}")
         nexus.disconnect_player(player_id)
 
+
 if __name__ == "__main__":
     import uvicorn
-    # 0.0.0.0 का मतलब है यह किसी भी नेटवर्क (Internet) से कनेक्ट हो सकता है
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
