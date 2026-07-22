@@ -74,17 +74,33 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# 1.6 ECONOMY & SECURITY VAULT WIRING (NEW)
+# 1.6 ECONOMY & SECURITY VAULT WIRING
 # ---------------------------------------------------------
 economy_engine = None
 
 try:
-    # यह इम्पोर्ट तुम्हारे economy_vault फोल्डर से है
     from economy_vault.billing_core import GodEconomyEngine
     economy_engine = GodEconomyEngine()
     print("[SYSTEM] Economy & Security Vault Initialized. Money is safe. 💰")
 except Exception as e:
     print(f"[WARNING] Economy initialization failed: {e}")
+
+
+# ---------------------------------------------------------
+# 1.7 ASSETS FACTORY WIRING (NEW)
+# ---------------------------------------------------------
+world_builder = None
+
+try:
+    from assets_factory.world_builder import world_forge
+    world_builder = world_forge
+    print("[SYSTEM] Assets Factory Initialized. World Forge is ready. 🌍")
+    
+    # सर्वर स्टार्ट होते ही बेस दुनिया (ज़मीन का पहला हिस्सा) बनाना
+    world_builder.generate_terrain_chunk(0, 0)
+    print("[SYSTEM] Initial terrain chunk (0,0) spawned automatically.")
+except Exception as e:
+    print(f"[WARNING] Assets Factory initialization failed: {e}")
 
 
 # ---------------------------------------------------------
@@ -115,11 +131,16 @@ class StatusCommand(BaseModel):
     task_id: str = Field(...)
     master_pin: str = Field(...)
 
-# इकोनॉमी के लिए नया पेलोड मॉडल
 class PaymentPayload(BaseModel):
     player_id: str = Field(...)
     amount: int = Field(...)
     method: str = Field(...)
+
+# एसेट्स स्पॉन करने के लिए नया पेलोड
+class SpawnItemPayload(BaseModel):
+    item_name: str
+    location: List[float] # X, Y, Z
+    attributes: dict
 
 
 # ---------------------------------------------------------
@@ -260,7 +281,7 @@ async def check_task_status(payload: StatusCommand):
 
 
 # ---------------------------------------------------------
-# 5.5 ECONOMY ENDPOINTS (NEW)
+# 5.5 ECONOMY ENDPOINTS
 # ---------------------------------------------------------
 @app.post("/economy/buy_pass")
 async def buy_premium_pass(payload: PaymentPayload):
@@ -279,6 +300,34 @@ async def get_player_ads(player_id: str):
     
     result = economy_engine.get_ad_payload(player_id)
     return JSONResponse(content=result)
+
+
+# ---------------------------------------------------------
+# 5.6 ASSETS FACTORY ENDPOINTS (NEW)
+# ---------------------------------------------------------
+@app.get("/assets/world_state")
+async def get_world_state():
+    """दुनिया के सारे एक्टिव एसेट्स (पेड़, ज़मीन, गन्स) का डेटा लेना"""
+    if not world_builder:
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": "World Builder is offline."})
+    
+    # दुनिया में मौजूद सारी चीज़ों की लिस्ट बनाना
+    assets_dict = {k: v.__dict__ for k, v in world_builder.active_assets.items()}
+    return JSONResponse(content={"status": "SUCCESS", "total_assets": len(assets_dict), "assets": assets_dict})
+
+@app.post("/assets/spawn_item")
+async def api_spawn_item(payload: SpawnItemPayload):
+    """हवा में कोई भी नया आइटम (जैसे गन) गिराना"""
+    if not world_builder:
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": "World Builder is offline."})
+    
+    if len(payload.location) != 3:
+        return JSONResponse(status_code=400, content={"status": "FAILED", "error": "Location must have X, Y, Z coordinates."})
+        
+    loc_tuple = (payload.location[0], payload.location[1], payload.location[2])
+    new_item = world_builder.spawn_item(payload.item_name, loc_tuple, payload.attributes)
+    
+    return JSONResponse(content={"status": "SUCCESS", "spawned_item": new_item.__dict__})
 
 
 # ---------------------------------------------------------
