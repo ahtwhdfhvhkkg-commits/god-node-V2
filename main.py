@@ -87,7 +87,7 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# 1.7 ASSETS FACTORY WIRING (NEW)
+# 1.7 ASSETS FACTORY WIRING
 # ---------------------------------------------------------
 world_builder = None
 
@@ -101,6 +101,19 @@ try:
     print("[SYSTEM] Initial terrain chunk (0,0) spawned automatically.")
 except Exception as e:
     print(f"[WARNING] Assets Factory initialization failed: {e}")
+
+
+# ---------------------------------------------------------
+# 1.8 PIXEL STREAMING WIRING (NEW)
+# ---------------------------------------------------------
+stream_engine = None
+
+try:
+    from pixel_streaming.stream_manager import PixelStreamEngine
+    stream_engine = PixelStreamEngine()
+    print("[SYSTEM] Pixel Stream Engine Initialized. WebRTC Ready. 🎥")
+except Exception as e:
+    print(f"[WARNING] Pixel Stream initialization failed: {e}")
 
 
 # ---------------------------------------------------------
@@ -136,11 +149,16 @@ class PaymentPayload(BaseModel):
     amount: int = Field(...)
     method: str = Field(...)
 
-# एसेट्स स्पॉन करने के लिए नया पेलोड
 class SpawnItemPayload(BaseModel):
     item_name: str
     location: List[float] # X, Y, Z
     attributes: dict
+
+# वेबआरटीसी स्ट्रीमिंग के लिए नया पेलोड
+class StreamOfferPayload(BaseModel):
+    player_id: str = Field(...)
+    sdp: str = Field(...)
+    type: str = Field(...)
 
 
 # ---------------------------------------------------------
@@ -152,19 +170,14 @@ async def engine_tick_loop():
     while True:
         try:
             if master_scheduler and cpp_adapter:
-                # शेड्यूलर से बैचेस मंगाना
                 batches = master_scheduler.build_batches()
                 for batch in batches:
-                    # C++ ब्रिज के अंदर कोड डालना और रन करना
                     results = cpp_adapter.execute(batch)
-                    
                     if results:
                         print(f"[C++ EXECUTION SUCCESS]: {results}")
-                        
         except Exception as e:
             print(f"[ENGINE ERROR] Tick Loop crashed: {e}")
             
-        # ~60 Ticks Per Second (मक्खन जैसी स्पीड के लिए)
         await asyncio.sleep(0.016)
 
 @app.on_event("startup")
@@ -285,49 +298,56 @@ async def check_task_status(payload: StatusCommand):
 # ---------------------------------------------------------
 @app.post("/economy/buy_pass")
 async def buy_premium_pass(payload: PaymentPayload):
-    """₹3000 वाला पास खरीदने का API"""
     if not economy_engine:
         return JSONResponse(status_code=500, content={"status": "FAILED", "error": "Economy engine is offline."})
-    
     result = economy_engine.process_premium_purchase(payload.player_id, payload.amount, payload.method)
     return JSONResponse(content=result)
 
 @app.get("/economy/ads/{player_id}")
 async def get_player_ads(player_id: str):
-    """चेक करने के लिए कि प्लेयर को 3D Ad दिखाना है या नहीं"""
     if not economy_engine:
         return JSONResponse(status_code=500, content={"status": "FAILED", "error": "Economy engine is offline."})
-    
     result = economy_engine.get_ad_payload(player_id)
     return JSONResponse(content=result)
 
 
 # ---------------------------------------------------------
-# 5.6 ASSETS FACTORY ENDPOINTS (NEW)
+# 5.6 ASSETS FACTORY ENDPOINTS
 # ---------------------------------------------------------
 @app.get("/assets/world_state")
 async def get_world_state():
-    """दुनिया के सारे एक्टिव एसेट्स (पेड़, ज़मीन, गन्स) का डेटा लेना"""
     if not world_builder:
         return JSONResponse(status_code=500, content={"status": "FAILED", "error": "World Builder is offline."})
-    
-    # दुनिया में मौजूद सारी चीज़ों की लिस्ट बनाना
     assets_dict = {k: v.__dict__ for k, v in world_builder.active_assets.items()}
     return JSONResponse(content={"status": "SUCCESS", "total_assets": len(assets_dict), "assets": assets_dict})
 
 @app.post("/assets/spawn_item")
 async def api_spawn_item(payload: SpawnItemPayload):
-    """हवा में कोई भी नया आइटम (जैसे गन) गिराना"""
     if not world_builder:
         return JSONResponse(status_code=500, content={"status": "FAILED", "error": "World Builder is offline."})
-    
     if len(payload.location) != 3:
-        return JSONResponse(status_code=400, content={"status": "FAILED", "error": "Location must have X, Y, Z coordinates."})
-        
+        return JSONResponse(status_code=400, content={"status": "FAILED", "error": "Location must have X, Y, Z."})
     loc_tuple = (payload.location[0], payload.location[1], payload.location[2])
     new_item = world_builder.spawn_item(payload.item_name, loc_tuple, payload.attributes)
-    
     return JSONResponse(content={"status": "SUCCESS", "spawned_item": new_item.__dict__})
+
+
+# ---------------------------------------------------------
+# 5.7 PIXEL STREAMING ENDPOINTS (NEW)
+# ---------------------------------------------------------
+@app.post("/stream/offer")
+async def webrtc_offer(payload: StreamOfferPayload):
+    """फोन/ब्राउज़र से आने वाली WebRTC रिक्वेस्ट को हैंडल करना"""
+    if not stream_engine:
+        return JSONResponse(status_code=500, content={"status": "FAILED", "error": "Stream engine is offline."})
+    
+    # 3D गेम रेंडरिंग स्ट्रीम का कनेक्शन बनाना
+    result = await stream_engine.create_stream_connection(
+        player_id=payload.player_id, 
+        offer_sdp=payload.sdp, 
+        offer_type=payload.type
+    )
+    return JSONResponse(content=result)
 
 
 # ---------------------------------------------------------
@@ -354,3 +374,4 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
