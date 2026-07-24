@@ -57,7 +57,7 @@ class FrameManager:
         """
         Return the deadline timestamp for a frame.
         """
-      return frame.timestamp + (self._config.frame_duration_ms / 1000.0)
+       return frame.timestamp + (self._config.frame_duration_ms / 1000.0)
 
     def is_expired(
         self,
