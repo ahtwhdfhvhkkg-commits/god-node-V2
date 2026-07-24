@@ -213,7 +213,7 @@ class SimulationScheduler:
             "queue": self._queue.snapshot(),
             "cache": self._cache.stats(),
 }
-  """
+"""
 simulation_scheduler/scheduler.py
 
 Central orchestration layer for the simulation scheduler.
