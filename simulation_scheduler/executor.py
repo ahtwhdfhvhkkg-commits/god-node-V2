@@ -71,4 +71,3 @@ class SimulationExecutor:
         Alias for run_frame().
         """
         return self.run_frame()
-}
