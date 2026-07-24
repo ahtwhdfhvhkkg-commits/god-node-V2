@@ -212,4 +212,4 @@ class SimulationScheduler:
             "queue_size": self.queue_size,
             "queue": self._queue.snapshot(),
             "cache": self._cache.stats(),
-}
+        }
