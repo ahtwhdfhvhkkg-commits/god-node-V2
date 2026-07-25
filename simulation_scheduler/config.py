@@ -1,34 +1,49 @@
 """
 simulation_scheduler/config.py
 
-Configuration settings for the God Node Simulation Scheduler.
+Configuration models for the simulation scheduler.
 """
+
+from __future__ import annotations
 from dataclasses import dataclass, field
 
-@dataclass
-class QueueConfig:
-    max_size: int = 10000
-    critical_capacity: int = 8000  # <--- यही वो नाम है जो इंजन ढूँढ रहा था!
-    priority_levels: int = 3
-
-@dataclass
+@dataclass(slots=True, frozen=True)
 class FrameConfig:
-    max_duration_sec: float = 0.16
-    target_fps: int = 60
+    """Simulation frame configuration."""
+    frame_duration_ms: int = 16
+    max_pending_frames: int = 4
 
-@dataclass
+@dataclass(slots=True, frozen=True)
+class QueueConfig:
+    """Scheduling queue configuration."""
+    high_priority_capacity: int = 512
+    normal_priority_capacity: int = 2048
+    low_priority_capacity: int = 4096
+    critical_capacity: int = 8000  # <--- (The Fix) इंजन यही ढूँढ रहा था!
+
+@dataclass(slots=True, frozen=True)
 class BatchConfig:
-    max_batch_size: int = 500
-    timeout_ms: int = 10
+    """Micro-batch execution configuration."""
+    max_batch_size: int = 32
+    max_batch_wait_ms: int = 2
 
-@dataclass
-class CacheConfig:
-    enabled: bool = True
-    ttl_seconds: int = 60
+@dataclass(slots=True, frozen=True)
+class MemoryBudget:
+    """Memory budget limits."""
+    max_memory_mb: int = 512
+    max_cached_results: int = 1024
+    max_cached_batches: int = 256
 
-@dataclass
+@dataclass(slots=True, frozen=True)
 class SchedulerConfig:
-    queue: QueueConfig = field(default_factory=QueueConfig)
+    """Top-level scheduler configuration."""
     frame: FrameConfig = field(default_factory=FrameConfig)
+    queue: QueueConfig = field(default_factory=QueueConfig)
     batch: BatchConfig = field(default_factory=BatchConfig)
-    memory: CacheConfig = field(default_factory=CacheConfig)
+    memory: MemoryBudget = field(default_factory=MemoryBudget)
+    
+    worker_count: int = 4
+    enable_inference_cache: bool = True
+    cache_ttl_seconds: int = 1
+
+
