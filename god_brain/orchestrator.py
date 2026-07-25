@@ -3,6 +3,7 @@ import logging
 import json
 import time
 import inspect
+import re
 from typing import Dict, Any, List
 
 # Importing the Swarm Agents
@@ -26,7 +27,7 @@ class GodOrchestrator:
     Enterprise-Grade Swarm Orchestrator.
     Manages parallel execution of AI agents while strictly adhering to external API rate limits.
     Uses Asyncio Semaphores to prevent HTTP 429 (Too Many Requests) errors.
-    Equipped with Smart Resolver to seamlessly handle both Synchronous and Asynchronous (Coroutine) agents.
+    Equipped with Smart Resolver and Bulletproof JSON Extraction.
     """
     def __init__(self):
         logger.info("Initializing God Node Orchestrator... Waking up Manager Agents.")
@@ -42,10 +43,44 @@ class GodOrchestrator:
         self.max_concurrent_agents = 5 
         self.semaphore = asyncio.Semaphore(self.max_concurrent_agents)
 
+    def _rescue_json_data(self, data: Any) -> Any:
+        """
+        DOUBLE-LAYER FILTER: Automatically cleans markdown tags and extracts pure JSON.
+        Rescues agent outputs that failed due to 'JSON Decode Error'.
+        """
+        # 1. Check if data is already a dict, but contains a failed raw_output
+        if isinstance(data, dict):
+            if data.get("status") == "FAILED" and "raw_output" in data:
+                text_to_clean = str(data["raw_output"])
+            else:
+                return data
+        elif isinstance(data, str):
+            text_to_clean = data
+        else:
+            return data
+            
+        # LAYER 1: Strip common Markdown formatting AI models add
+        text_to_clean = text_to_clean.replace("```json", "").replace("```", "").strip()
+
+        try:
+            # Try to parse immediately after stripping
+            return json.loads(text_to_clean)
+        except json.JSONDecodeError:
+            # LAYER 2: If it still fails, use Regex to find the first JSON block { } or [ ]
+            try:
+                match = re.search(r'(\{.*\}|\[.*\])', text_to_clean, re.DOTALL)
+                if match:
+                    return json.loads(match.group(1))
+            except Exception:
+                pass
+                
+        # If all rescue attempts fail, return the original data so it doesn't crash the server
+        return data
+
     async def _resolve_agent_call(self, agent_method, *args, **kwargs):
         """
         THE MAGIC FIX: Automatically opens 'closed boxes' (coroutines) returned by agents.
-        Prevents the 'coroutine object has no attribute get' error.
+        Applies the JSON rescue filter to ALL agent outputs automatically.
         """
         # 1. Execute the method dynamically based on its type
         if inspect.iscoroutinefunction(agent_method):
@@ -57,7 +92,8 @@ class GodOrchestrator:
         if inspect.isawaitable(result):
             result = await result
             
-        return result
+        # 3. APPLY THE JSON RESCUE FILTER HERE TO PROTECT ALL AGENTS
+        return self._rescue_json_data(result)
 
     async def _execute_swarm_task_safely(self, task_id: int, agent, task_data: str, kwargs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -100,8 +136,9 @@ class GodOrchestrator:
             logger.info("STEP 1: Director is planning the architecture...")
             game_plan = await self._resolve_agent_call(self.director.perform_role, prompt)
             
-            if not game_plan or game_plan.get("status") == "FAILED":
-                raise ValueError(f"Director Agent failed to create a valid plan: {game_plan.get('error', 'Unknown Error')}")
+            if not game_plan or (isinstance(game_plan, dict) and game_plan.get("status") == "FAILED"):
+                error_msg = game_plan.get('error', 'Unknown Error') if isinstance(game_plan, dict) else 'Invalid Format'
+                raise ValueError(f"Director Agent failed to create a valid plan: {error_msg}")
 
             # ---------------------------------------------------------
             # STEP 2 & 3: THE SWARM (Asset & Map Generation in Parallel)
@@ -186,4 +223,7 @@ class GodOrchestrator:
                 "status": "FAILED",
                 "error": str(e),
                 "stage": "Execution Pipeline"
-}
+            }
+
+
+
