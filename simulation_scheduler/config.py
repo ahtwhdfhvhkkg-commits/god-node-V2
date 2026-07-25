@@ -16,10 +16,11 @@ class FrameConfig:
 @dataclass(slots=True, frozen=True)
 class QueueConfig:
     """Scheduling queue configuration."""
-    high_priority_capacity: int = 512
-    normal_priority_capacity: int = 2048
-    low_priority_capacity: int = 4096
-    critical_capacity: int = 8000  # <--- (The Fix) इंजन यही ढूँढ रहा था!
+    # मैंने यहाँ नाम एकदम तुम्हारी queue.py के हिसाब से मैच कर दिए हैं
+    critical_capacity: int = 512      
+    high_capacity: int = 1024         
+    normal_capacity: int = 2048       
+    low_capacity: int = 4096          
 
 @dataclass(slots=True, frozen=True)
 class BatchConfig:
@@ -45,5 +46,3 @@ class SchedulerConfig:
     worker_count: int = 4
     enable_inference_cache: bool = True
     cache_ttl_seconds: int = 1
-
-
