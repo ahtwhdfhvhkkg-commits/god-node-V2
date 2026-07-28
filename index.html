@@ -3,391 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>God Node V2 | Autonomous Studio</title>
-    <!-- Tailwind CSS for strict Monochrome Styling -->
+    <title>God Node V2.0 | Enterprise Autonomous Studio</title>
+    
+    <!-- External Dependencies (Tailwind, FontAwesome, Three.js WebGPU) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- Strict Monochrome & Performance Tailwind Config -->
     <script>
-        // STRICT BLACK & WHITE CONFIGURATION
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        black: '#000000',
-                        white: '#ffffff',
-                        gray: { 900: '#111111', 800: '#222222', 700: '#333333', 400: '#888888' }
-                    },
+                    colors: { black: '#000000', white: '#ffffff', gray: { 900: '#111', 800: '#222', 700: '#333', 400: '#888' } },
                     animation: {
-                        'wave': 'wave 1s infinite linear',
-                        'spin-slow': 'spin 3s linear infinite',
+                        'scanline': 'scanline 8s linear infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'spin-slow': 'spin 4s linear infinite',
                     },
                     keyframes: {
-                        wave: {
-                            '0%, 100%': { transform: 'scaleY(1)' },
-                            '50%': { transform: 'scaleY(1.5)' },
-                        }
+                        scanline: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100vh)' } }
                     }
                 }
             }
         }
     </script>
 
+    <!-- Complex UI Styles & Waveform Mathematics -->
     <style>
-        body { background-color: #000000; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-        /* Scrollbar Hiding for clean look */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: #111; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        :root { --ui-border: #333; --ui-bg: #000; --ui-text: #fff; --ui-accent: #fff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body { background-color: var(--ui-bg); color: var(--ui-text); font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, monospace; overflow: hidden; height: 100dvh; width: 100vw; }
         
-        .mic-active .wave-bar { animation: wave 0.8s infinite ease-in-out; background-color: #ffffff; }
-        .mic-active .wave-bar:nth-child(2) { animation-delay: 0.1s; }
-        .mic-active .wave-bar:nth-child(3) { animation-delay: 0.2s; }
-        .mic-active .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fff; }
+
+        /* CRT Terminal Effect Overlay */
+        .crt-overlay { pointer-events: none; position: absolute; inset: 0; z-index: 50; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; opacity: 0.15; }
+        .scanline { width: 100%; height: 10px; background: rgba(255,255,255,0.1); position: absolute; z-index: 51; opacity: 0.4; pointer-events: none; }
+
+        /* Voice Waveform Canvas */
+        #voice-visualizer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
+        .mic-active #voice-visualizer { opacity: 1; }
+        .mic-active .fa-microphone { display: none; }
+
+        /* Split Pane Layout */
+        .layout-grid { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: 48px 1fr 80px; height: 100dvh; width: 100vw; }
+        @media (max-width: 768px) { .layout-grid { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 70px; } .sidebar { display: none; } }
+        
+        .header { grid-column: 1 / -1; border-bottom: 1px solid var(--ui-border); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #0a0a0a; z-index: 20; }
+        .sidebar { border-right: 1px solid var(--ui-border); background: #050505; display: flex; flex-direction: column; overflow: hidden; }
+        .viewport { position: relative; background: #000; overflow: hidden; display: flex; flex-direction: column; }
+        .command-bar { grid-column: 1 / -1; border-top: 1px solid var(--ui-border); background: #0a0a0a; display: flex; align-items: flex-end; padding: 12px 16px; z-index: 20; }
+
+        /* Viewport Layers */
+        #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+        #webrtc-video { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; object-fit: cover; display: none; }
+        .hud-overlay { position: absolute; inset: 0; z-index: 10; pointer-events: none; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; }
+        
+        /* Terminal Log */
+        .terminal-log { background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 8px; font-family: monospace; font-size: 10px; width: 300px; max-height: 150px; overflow-y: auto; pointer-events: auto; }
+        .log-entry { margin-bottom: 4px; line-height: 1.2; word-wrap: break-word; }
+        .log-info { color: #fff; } .log-warn { color: #aaa; } .log-error { color: #ff3333; } .log-sys { color: #888; }
+
+        /* Loader */
+        .god-loader { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .god-loader.active { opacity: 1; pointer-events: auto; }
+        
+        /* Complex Input Area */
+        .input-wrapper { flex: 1; background: #111; border: 1px solid var(--ui-border); border-radius: 8px; display: flex; align-items: center; padding: 4px 12px; transition: border-color 0.2s; position: relative; }
+        .input-wrapper:focus-within { border-color: #fff; }
+        #god-prompt { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-family: monospace; font-size: 14px; padding: 8px 0; resize: none; max-height: 120px; overflow-y: auto; }
+        .btn-action { background: #fff; color: #000; border: none; height: 36px; padding: 0 16px; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-action:hover { background: #ccc; }
+        .btn-icon { background: transparent; color: #888; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.2s; position: relative; }
+        .btn-icon:hover { color: #fff; background: #222; }
     </style>
 </head>
+<body>
 
-<body class="h-[100dvh] w-full flex flex-col overflow-hidden">
+    <!-- Visual Effects -->
+    <div class="crt-overlay"></div>
+    <div class="scanline animate-scanline"></div>
 
-    <!-- TOP HEADER -->
-    <header class="h-14 min-h-[56px] border-b border-gray-800 bg-gray-900 flex items-center justify-between px-4 lg:px-6 z-20">
-        <div class="flex items-center gap-3">
-            <i class="fa-brands fa-connectdevelop text-white text-xl"></i>
-            <h1 class="text-lg font-bold tracking-widest uppercase">God Node <span class="text-xs text-gray-400 font-normal ml-1 border border-gray-700 px-1 rounded">V2.0</span></h1>
-        </div>
+    <div class="layout-grid">
         
-        <div class="flex items-center gap-4">
-            <!-- Google Drive Status -->
-            <div class="hidden md:flex items-center gap-2 text-xs font-mono text-gray-400 border border-gray-800 bg-black px-3 py-1 rounded">
-                <i class="fa-brands fa-google-drive"></i>
-                <span id="drive-status">G-Drive Sync: ONLINE</span>
+        <!-- 1. HEADER (System Status) -->
+        <header class="header">
+            <div class="flex items-center gap-3">
+                <i class="fa-brands fa-connectdevelop text-xl text-white animate-pulse-slow"></i>
+                <h1 class="font-bold tracking-[0.2em] text-sm uppercase">God Node <span class="border border-gray-700 px-1 text-[10px] ml-1 rounded">V2.0</span></h1>
             </div>
             
-            <!-- Server Status -->
-            <div class="flex items-center gap-2 text-xs font-mono">
-                <div id="status-dot" class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
-                <span class="hidden sm:inline">ENGINE ACTIVE</span>
+            <div class="flex items-center gap-4 font-mono text-[10px] text-gray-400 uppercase tracking-widest">
+                <div class="hidden md:flex items-center gap-2 border border-gray-800 px-2 py-1 rounded">
+                    <i class="fa-brands fa-google-drive"></i> <span id="drive-status">Vault: Syncing...</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="network-ping">Ping: --ms</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div id="sys-status-indicator" class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    <span id="sys-status-text">Engine Online</span>
+                </div>
             </div>
-            <button class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-bars"></i></button>
-        </div>
-    </header>
+        </header>
 
-    <!-- MAIN WORKSPACE -->
-    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
-        
-        <!-- SIDEBAR (Assets & Exports) - Hidden on mobile, toggleable -->
-        <aside class="w-full md:w-64 border-r border-gray-800 bg-black flex flex-col hidden md:flex z-10 h-48 md:h-full">
-            
-            <!-- Export Tools -->
-            <div class="p-4 border-b border-gray-800">
-                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Deployment</h3>
-                <div class="flex flex-col gap-2">
-                    <button onclick="triggerExport('web')" class="w-full bg-gray-900 hover:bg-white hover:text-black text-white text-xs py-2 px-3 border border-gray-800 rounded transition duration-200 flex items-center justify-between">
-                        <span>Web (.ZIP)</span> <i class="fa-solid fa-box-archive"></i>
+        <!-- 2. SIDEBAR (Asset Store & Build Pipeline) -->
+        <aside class="sidebar">
+            <div class="p-3 border-b border-gray-800">
+                <h3 class="text-[10px] text-gray-500 tracking-[0.1em] uppercase mb-2">Build Pipeline</h3>
+                <div class="space-y-2">
+                    <button onclick="GodUI.triggerBuild('web')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
+                        <span>Web (.ZIP)</span> <i class="fa-solid fa-box-archive text-gray-600 group-hover:text-white"></i>
                     </button>
-                    <button onclick="triggerExport('mobile')" class="w-full bg-gray-900 hover:bg-white hover:text-black text-white text-xs py-2 px-3 border border-gray-800 rounded transition duration-200 flex items-center justify-between">
-                        <span>Mobile (.APK)</span> <i class="fa-solid fa-mobile-screen"></i>
+                    <button onclick="GodUI.triggerBuild('mobile')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
+                        <span>Mobile (.APK)</span> <i class="fa-brands fa-android text-gray-600 group-hover:text-white"></i>
+                    </button>
+                    <button onclick="GodUI.triggerBuild('pc')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
+                        <span>PC (.EXE)</span> <i class="fa-brands fa-windows text-gray-600 group-hover:text-white"></i>
                     </button>
                 </div>
             </div>
-
-            <!-- Google Drive Asset Store -->
-            <div class="flex-1 p-4 flex flex-col overflow-hidden">
-                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex justify-between">
-                    <span>G-Drive Assets</span>
-                    <i class="fa-solid fa-cloud-arrow-down cursor-pointer hover:text-white" onclick="fetchDriveAssets()"></i>
-                </h3>
-                <div id="asset-list" class="flex-1 overflow-y-auto space-y-2">
-                    <!-- Assets will be loaded here from G-Drive API -->
-                    <div class="text-xs text-gray-400 border border-gray-800 p-2 rounded flex justify-between items-center hover:border-gray-400 cursor-pointer">
-                        <span><i class="fa-solid fa-cube mr-2"></i> Player_Car.glb</span>
-                        <span class="text-[9px]">1.2MB</span>
-                    </div>
+            
+            <div class="flex-1 p-3 overflow-y-auto">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-[10px] text-gray-500 tracking-[0.1em] uppercase">G-Drive Assets</h3>
+                    <button onclick="GodUI.refreshAssets()" class="text-gray-500 hover:text-white"><i class="fa-solid fa-rotate-right text-[10px]"></i></button>
+                </div>
+                <div id="asset-list" class="space-y-1">
+                    <!-- Assets injected via JS -->
                 </div>
             </div>
         </aside>
 
-        <!-- CENTER STAGE (Game Canvas) -->
-        <main class="flex-1 relative bg-gray-900 flex flex-col">
+        <!-- 3. VIEWPORT (3D Canvas, WebRTC, HUD) -->
+        <main class="viewport">
             
             <!-- Loading Overlay -->
-            <div id="loading-overlay" class="absolute inset-0 bg-black/90 z-20 hidden flex-col items-center justify-center">
-                <i class="fa-solid fa-circle-notch text-3xl animate-spin-slow mb-4"></i>
-                <h2 class="text-lg font-bold tracking-widest uppercase mb-1">Processing Directive</h2>
-                <p id="loading-text" class="text-xs text-gray-400 font-mono">MultiBrainRouter calculating...</p>
-            </div>
-
-            <!-- Game Iframe -->
-            <div class="flex-1 w-full h-full p-2 md:p-4">
-                <iframe id="game-frame" class="w-full h-full bg-black border border-gray-800 rounded-lg shadow-2xl" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
-            </div>
-
-            <!-- BOTTOM INPUT BAR -->
-            <div class="h-auto min-h-[70px] border-t border-gray-800 bg-black p-3 flex items-end gap-2 md:gap-4">
+            <div id="god-loader" class="god-loader">
+                <i class="fa-solid fa-atom text-4xl mb-4 animate-spin-slow text-white"></i>
+                <div class="font-mono text-xs tracking-[0.2em] uppercase text-white mb-2">Orchestrating Reality</div>
+                <div id="loader-text" class="font-mono text-[10px] text-gray-500">Connecting to Quantum Node...</div>
                 
-                <div class="flex-1 bg-gray-900 border border-gray-700 rounded-lg flex items-center px-3 py-2 focus-within:border-white transition-colors relative">
-                    
-                    <!-- Mic Button & Wave Animation -->
-                    <button id="mic-btn" onclick="toggleMic()" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition mr-2 relative">
-                        <i id="mic-icon" class="fa-solid fa-microphone"></i>
-                        <!-- Hidden Audio Wave Bars -->
-                        <div id="mic-wave" class="absolute inset-0 flex items-center justify-center gap-[2px] hidden">
-                            <div class="wave-bar w-1 h-3 bg-gray-400 rounded-full"></div>
-                            <div class="wave-bar w-1 h-5 bg-gray-400 rounded-full"></div>
-                            <div class="wave-bar w-1 h-3 bg-gray-400 rounded-full"></div>
-                            <div class="wave-bar w-1 h-4 bg-gray-400 rounded-full"></div>
-                        </div>
-                    </button>
+                <!-- Progress Bar -->
+                <div class="w-64 h-1 bg-gray-900 mt-4 rounded overflow-hidden">
+                    <div id="loader-progress" class="h-full bg-white w-0 transition-all duration-300"></div>
+                </div>
+            </div>
 
-                    <!-- Text Input -->
-                    <textarea id="prompt-input" rows="1" class="w-full bg-transparent outline-none text-white text-sm font-mono placeholder-gray-500 resize-none py-1" placeholder="Define reality... (e.g. Build a 3D racing game)"></textarea>
+            <!-- Client-Side Render Target (Fallback/HTML5 Mode) -->
+            <canvas id="game-canvas"></canvas>
+            
+            <!-- Cloud Gaming Render Target (WebRTC Mode) -->
+            <video id="webrtc-video" autoplay playsinline></video>
+            
+            <!-- Heads Up Display (HUD) -->
+            <div class="hud-overlay">
+                <!-- Top Right: Performance Metrics -->
+                <div class="flex justify-end w-full">
+                    <div class="font-mono text-[10px] bg-black/80 border border-gray-800 p-2 rounded text-right pointer-events-auto">
+                        <div id="hud-fps" class="text-white">FPS: 0</div>
+                        <div id="hud-ram" class="text-gray-400">RAM: 0MB</div>
+                        <div id="hud-mode" class="text-gray-500 mt-1">Mode: LOCAL_GPU</div>
+                    </div>
                 </div>
                 
-                <!-- Send Button -->
-                <button id="send-btn" onclick="submitDirective()" class="h-10 px-5 bg-white text-black font-bold text-sm uppercase tracking-wider rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center">
-                    <i class="fa-solid fa-arrow-up"></i>
-                </button>
+                <!-- Bottom Left: Live Terminal -->
+                <div class="terminal-log" id="terminal-log">
+                    <div class="log-entry log-sys">[SYSTEM] God Node V2 Client Initialized.</div>
+                </div>
             </div>
         </main>
+
+        <!-- 4. COMMAND BAR (Input, Voice, Execution) -->
+        <footer class="command-bar gap-3">
+            <div class="input-wrapper">
+                
+                <!-- Advanced Voice Input Button -->
+                <button id="mic-btn" class="btn-icon mr-2 flex-shrink-0" onmousedown="GodVoice.startListening()" onmouseup="GodVoice.stopListening()" ontouchstart="GodVoice.startListening()" ontouchend="GodVoice.stopListening()">
+                    <i class="fa-solid fa-microphone"></i>
+                    <!-- HTML5 Canvas for real-time soundwave mathematics -->
+                    <canvas id="voice-visualizer"></canvas>
+                </button>
+                
+                <textarea id="god-prompt" rows="1" placeholder="Define reality... (e.g., 'Generate a AAA racing game' or 'Patch the car physics')" oninput="this.style.height='auto';this.style.height=(this.scrollHeight)+'px';"></textarea>
+                
+                <!-- Attachment/Context Button -->
+                <button class="btn-icon ml-2 flex-shrink-0" title="Attach Context">
+                    <i class="fa-solid fa-paperclip"></i>
+                </button>
+            </div>
+            
+            <button class="btn-action flex-shrink-0" onclick="GodUI.executeDirective()">
+                Execute <i class="fa-solid fa-bolt ml-2"></i>
+            </button>
+        </footer>
     </div>
 
-    <script>
-        // DOM Elements
-        const promptInput = document.getElementById('prompt-input');
-        const gameFrame = document.getElementById('game-frame');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const loadingText = document.getElementById('loading-text');
-        const micBtn = document.getElementById('mic-btn');
-        const micIcon = document.getElementById('mic-icon');
-        const micWave = document.getElementById('mic-wave');
+    <!-- ===================================================================== -->
+    <!-- ENTERPRISE JAVASCRIPT ARCHITECTURE (CLIENT-SIDE MONOLITH) -->
+    <!-- ===================================================================== -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        let isRecording = false;
-        let recognition = null;
-        let currentGameId = null;
-
-        // Auto-resize textarea
-        promptInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight < 100 ? this.scrollHeight : 100) + 'px';
-        });
-
-        // Submit on Enter (Shift+Enter for new line)
-        promptInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                submitDirective();
+        // ---------------------------------------------------------
+        // MODULE 1: TERMINAL & LOGGER SYSTEM
+        // ---------------------------------------------------------
+        class TerminalLogger {
+            constructor(elementId) {
+                this.terminal = document.getElementById(elementId);
+                this.logHistory = [];
             }
-        });
+            
+            log(msg, type = 'sys') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+                const time = new Date().toISOString().split('T')[1].slice(0,8);
+                entry.innerText = `[${time}] ${msg}`;
+                
+                this.terminal.appendChild(entry);
+                this.terminal.scrollTop = this.terminal.scrollHeight;
+                
+                this.logHistory.push({time, msg, type});
+                if(this.terminal.children.length > 50) this.terminal.firstChild.remove();
+                
+                // Also mirror to browser console for debug
+                if(type === 'error') console.error(msg);
+                else console.log(`[GodNode] ${msg}`);
+            }
+        }
+        const Logger = new TerminalLogger('terminal-log');
 
-        // ==========================================
-        // 1. WEB SPEECH API (Voice Command Logic)
-        // ==========================================
-        function initSpeechRecognition() {
-            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        // ---------------------------------------------------------
+        // MODULE 2: WEB SPEECH API & AUDIO MATHEMATICS
+        // ---------------------------------------------------------
+        class VoiceEngine {
+            constructor() {
+                this.btn = document.getElementById('mic-btn');
+                this.promptInput = document.getElementById('god-prompt');
+                this.canvas = document.getElementById('voice-visualizer');
+                this.ctx = this.canvas.getContext('2d');
+                this.isListening = false;
+                
+                this.audioCtx = null;
+                this.analyser = null;
+                this.dataArray = null;
+                this.animationId = null;
+                
+                this.initSpeech();
+            }
+
+            initSpeech() {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US'; // Can be changed based on need
-
-                recognition.onstart = () => {
-                    isRecording = true;
-                    micIcon.classList.add('hidden');
-                    micWave.classList.remove('hidden');
-                    micBtn.classList.add('mic-active');
-                    promptInput.placeholder = "Listening...";
-                };
-
-                recognition.onresult = (event) => {
+                if (!SpeechRecognition) {
+                    Logger.log("Web Speech API not supported in this browser.", "error");
+                    return;
+                }
+                
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = true;
+                this.recognition.interimResults = true;
+                
+                this.recognition.onresult = (event) => {
                     let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
                         transcript += event.results[i][0].transcript;
                     }
-                    promptInput.value = transcript;
+                    this.promptInput.value = transcript;
                 };
-
-                recognition.onerror = (event) => {
-                    console.error("Speech Error:", event.error);
-                    stopMicUI();
-                };
-
-                recognition.onend = () => {
-                    if (isRecording) {
-                        stopMicUI();
-                        // Optional: Auto-submit when speaking stops
-                        // submitDirective(); 
-                    }
-                };
-            } else {
-                console.warn("Speech Recognition API not supported in this browser.");
-            }
-        }
-
-        function toggleMic() {
-            if (!recognition) initSpeechRecognition();
-            if (!recognition) {
-                alert("Voice commands require Chrome/Edge and HTTPS.");
-                return;
-            }
-
-            if (isRecording) {
-                recognition.stop();
-                stopMicUI();
-            } else {
-                promptInput.value = ''; // Clear previous text
-                recognition.start();
-            }
-        }
-
-        function stopMicUI() {
-            isRecording = false;
-            micIcon.classList.remove('hidden');
-            micWave.classList.add('hidden');
-            micBtn.classList.remove('mic-active');
-            promptInput.placeholder = "Define reality...";
-        }
-
-        // ==========================================
-        // 2. CORE BACKEND CONNECTION (API Router)
-        // ==========================================
-        async function submitDirective() {
-            const directive = promptInput.value.trim();
-            if (!directive) return;
-
-            // Reset UI
-            promptInput.value = '';
-            promptInput.style.height = 'auto';
-            loadingOverlay.classList.remove('hidden');
-            
-            // Checking if it's a Live Edit vs New Game
-            const isLiveEdit = currentGameId && (directive.toLowerCase().includes("add") || directive.toLowerCase().includes("change"));
-
-            if (isLiveEdit) {
-                loadingText.innerText = "Hot-Reloading AST via Vibe Coder...";
-                await sendToBackend(directive, "live_edit");
-            } else {
-                loadingText.innerText = "Orchestrator analyzing Intent...";
-                await sendToBackend(directive, "new_generation");
-            }
-        }
-
-        async function sendToBackend(directive, type) {
-            try {
-                // Pointing to the FastAPI main.py endpoint
-                const response = await fetch('/api/v2/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        directive: directive,
-                        master_pin: "7777",
-                        context_data: { game_id: currentGameId, type: type }
-                    })
-                });
-
-                const data = await response.json();
                 
-                if (data.status === "PROCESSING" || data.status === "ACCEPTED") {
-                    pollTaskStatus(data.task_id);
-                } else {
-                    throw new Error(data.detail || "Server rejected request.");
-                }
-            } catch (error) {
-                console.error("Connection Error:", error);
-                loadingText.innerText = `[CRITICAL ERROR] ${error.message}`;
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 3000);
+                this.recognition.onerror = (e) => Logger.log(`Voice Error: ${e.error}`, "warn");
+                this.recognition.onend = () => this.stopListening();
             }
-        }
 
-        // Polling the QA Tester & MultiAPI results
-        async function pollTaskStatus(taskId) {
-            const pollInterval = setInterval(async () => {
+            async initAudioMath() {
+                if (this.audioCtx) return;
                 try {
-                    const res = await fetch(`/api/v2/status/${taskId}`);
-                    if (!res.ok) throw new Error("Status check failed.");
-                    const data = await res.json();
-
-                    if (data.status === "SUCCESS") {
-                        clearInterval(pollInterval);
-                        loadingOverlay.classList.add('hidden');
-                        
-                        // Extract HTML logic from GodBrain
-                        let finalHtml = data.result?.final_build?.verified_code || data.result?.final_build || "";
-                        
-                        // Error handling if AI didn't return HTML
-                        if (!finalHtml.includes("<html") && !finalHtml.includes("<canvas")) {
-                            finalHtml = `<div style='color:white; font-family:monospace; padding:20px;'>
-                                <h3>[QA TESTER WARNING]</h3>
-                                <p>Engine returned logic without a UI shell. Raw output:</p>
-                                <pre>${JSON.stringify(finalHtml, null, 2)}</pre>
-                            </div>`;
-                        }
-
-                        // Inject into Iframe safely
-                        currentGameId = "GN_Game_" + Date.now();
-                        const doc = gameFrame.contentWindow.document;
-                        doc.open();
-                        doc.write(finalHtml);
-                        doc.close();
-
-                    } else if (data.status === "FAILED") {
-                        clearInterval(pollInterval);
-                        loadingText.innerText = `[QA FAILED] ${data.result?.error || 'Unknown Error'}`;
-                        setTimeout(() => loadingOverlay.classList.add('hidden'), 4000);
-                    } else {
-                        // Dynamic loading text updates based on progress
-                        if(data.progress < 30) loadingText.innerText = "Master Router allocating resources...";
-                        else if(data.progress < 70) loadingText.innerText = "Asset Generator connecting to G-Drive...";
-                        else loadingText.innerText = "QA Tester executing Headless Simulation...";
-                    }
-                } catch (e) {
-                    clearInterval(pollInterval);
-                    loadingText.innerText = "[NETWORK] Lost connection to God Node.";
-                    setTimeout(() => loadingOverlay.classList.add('hidden'), 3000);
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = this.audioCtx.createMediaStreamSource(stream);
+                    this.analyser = this.audioCtx.createAnalyser();
+                    this.analyser.fftSize = 64; // Low res for aesthetic waveform
+                    source.connect(this.analyser);
+                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    
+                    // Resize canvas to match button size
+                    this.canvas.width = this.btn.offsetWidth;
+                    this.canvas.height = this.btn.offsetHeight;
+                } catch(e) {
+                    Logger.log("Microphone access denied for waveform.", "warn");
                 }
-            }, 2500); // Poll every 2.5 seconds
-        }
-
-        // ==========================================
-        // 3. EXPORT CAPABILITIES (Universal Builder)
-        // ==========================================
-        async function triggerExport(platform) {
-            if (!currentGameId) {
-                alert("No active game in the reality canvas. Generate a game first.");
-                return;
             }
-            
-            // Connects to game_compilers/universal_builder.py via main.py
-            alert(`[UNIVERSAL BUILDER] Initiating CI/CD pipeline for ${platform.toUpperCase()}. This may take a moment.`);
-            
-            try {
-                const res = await fetch('/api/v2/export', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        game_id: currentGameId,
-                        target_platform: platform,
-                        master_pin: "7777"
-                    })
-                });
+
+            drawWaveform() {
+                if (!this.isListening || !this.analyser) return;
                 
-                const data = await res.json();
-                if (data.status === "SUCCESS") {
-                    alert(`Build Complete! File saved to: ${data.file_path}`);
-                    // In a real browser context, trigger a file download here
-                } else {
-                    alert(`Build Failed: ${data.build_logs}`);
+                this.animationId = requestAnimationFrame(() => this.drawWaveform());
+                this.analyser.getByteFrequencyData(this.dataArray);
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.fillStyle = '#ffffff';
+                
+                const barWidth = (this.canvas.width / this.analyser.frequencyBinCount) * 1.5;
+                let x = 0;
+                
+                for(let i = 0; i < this.analyser.frequencyBinCount; i++) {
+                    const barHeight = (this.dataArray[i] / 255) * this.canvas.height * 0.8;
+                    const y = (this.canvas.height - barHeight) / 2; // Center vertically
+                    
+                    // Draw rounded rects for wave
+                    this.ctx.beginPath();
+                    this.ctx.roundRect(x, y, barWidth - 1, barHeight, 2);
+                    this.ctx.fill();
+                    
+                    x += barWidth;
                 }
-            } catch(e) {
-                alert("Connection to Compiler Engine lost.");
+            }
+
+            async startListening() {
+                if (this.isListening) return;
+                this.isListening = true;
+                this.btn.classList.add('mic-active');
+                
+                if(this.recognition) this.recognition.start();
+                
+                await this.initAudioMath();
+                if(this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                this.drawWaveform();
+                
+                Logger.log("Voice Engine Activated. Listening...", "sys");
+            }
+
+            stopListening() {
+                if (!this.isListening) return;
+                this.isListening = false;
+                this.btn.classList.remove('mic-active');
+                
+                if(this.recognition) this.recognition.stop();
+                if(this.animationId) cancelAnimationFrame(this.animationId);
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                Logger.log("Voice Engine Deactivated.", "sys");
             }
         }
-        
-        // Stub for fetching G-Drive assets (Would connect to db_manager.py)
-        function fetchDriveAssets() {
-            const btn = document.querySelector('.fa-cloud-arrow-down');
-            btn.classList.add('animate-spin');
-            setTimeout(() => btn.classList.remove('animate-spin'), 1000);
-        }
-    </script>
-</body>
-            </html>
+        window.GodVoice = new VoiceEngine(); // Expose to global for inline handlers
+
+        // --------
