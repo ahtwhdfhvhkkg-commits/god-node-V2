@@ -120,6 +120,15 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ Universal Builder failed: {e}")
 
+# --- NEW: ODRE CORE CONNECTION ---
+try:
+    from core_engine.odre_core import reality_core
+    SYSTEM_REGISTRY["odre_engine"] = reality_core
+    logger.info("✅ ODRE (Quantum Reality Engine) ONLINE.")
+except Exception as e:
+    logger.critical(f"❌ ODRE Engine failed: {e}")
+# ---------------------------------
+
 # =====================================================================
 # 2. CORE GAME LOOP & LIFESPAN MANAGEMENT
 # =====================================================================
