@@ -2,143 +2,392 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOD NODE V2 | Command Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>God Node V2 | Autonomous Studio</title>
+    <!-- Tailwind CSS for strict Monochrome Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        // STRICT BLACK & WHITE CONFIGURATION
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#000000',
+                        white: '#ffffff',
+                        gray: { 900: '#111111', 800: '#222222', 700: '#333333', 400: '#888888' }
+                    },
+                    animation: {
+                        'wave': 'wave 1s infinite linear',
+                        'spin-slow': 'spin 3s linear infinite',
+                    },
+                    keyframes: {
+                        wave: {
+                            '0%, 100%': { transform: 'scaleY(1)' },
+                            '50%': { transform: 'scaleY(1.5)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        body { background-color: #ffffff; color: #111111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
-        h1 { font-weight: 800; letter-spacing: -1px; margin-bottom: 5px; text-transform: uppercase; }
-        .status-dot { height: 10px; width: 10px; background-color: #000000; border-radius: 50%; display: inline-block; margin-right: 8px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0, 0, 0, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); } }
-        .container { width: 100%; max-width: 800px; background: #ffffff; border: 2px solid #000000; padding: 40px; box-shadow: 8px 8px 0px #000000; margin-top: 30px; }
-        .section { margin-bottom: 35px; }
-        h3 { margin-top: 0; text-transform: uppercase; font-size: 14px; letter-spacing: 1px; border-bottom: 2px solid #000000; padding-bottom: 10px; margin-bottom: 20px; }
-        input, select, button { background: #ffffff; color: #000000; border: 2px solid #000000; padding: 12px 15px; font-family: inherit; font-size: 14px; font-weight: 600; transition: all 0.2s ease; }
-        input:focus, select:focus { outline: none; background: #f4f4f4; }
-        button { cursor: pointer; background: #000000; color: #ffffff; text-transform: uppercase; }
-        button:hover { background: #ffffff; color: #000000; }
-        .input-group { display: flex; gap: 15px; margin-bottom: 15px; }
-        .input-group input { flex-grow: 1; }
-        .terminal { background: #f9f9f9; border: 2px solid #000000; padding: 20px; height: 300px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.6; }
-        .vault-item { display: inline-block; background: #000000; color: #ffffff; padding: 4px 10px; font-size: 12px; font-weight: bold; margin-right: 8px; margin-top: 10px; }
+        body { background-color: #000000; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+        /* Scrollbar Hiding for clean look */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+        
+        .mic-active .wave-bar { animation: wave 0.8s infinite ease-in-out; background-color: #ffffff; }
+        .mic-active .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+        .mic-active .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+        .mic-active .wave-bar:nth-child(4) { animation-delay: 0.3s; }
     </style>
 </head>
-<body>
-    <h1>God Node V2</h1>
-    <p style="margin-top: 0; font-weight: 600; font-size: 12px; letter-spacing: 1px;">
-        <span class="status-dot"></span> ENTERPRISE NEURAL LINK ACTIVE
-    </p>
-    <div class="container">
-        <div class="section">
-            <h3>Secure API Vault</h3>
-            <div class="input-group">
-                <select id="apiProvider">
-                    <option value="gemini">Google Gemini</option>
-                    <option value="openai">OpenAI (GPT-4)</option>
-                    <option value="openrouter">OpenRouter</option>
-                    <option value="gdrive">Google Drive</option>
-                </select>
-                <input type="password" id="apiKeyInput" placeholder="Enter API Key to load into memory...">
-                <button onclick="addApiKey()">Add Key</button>
-            </div>
-            <div id="vaultDisplay" style="font-size: 13px; font-weight: 600;">Status: No keys loaded.</div>
+
+<body class="h-[100dvh] w-full flex flex-col overflow-hidden">
+
+    <!-- TOP HEADER -->
+    <header class="h-14 min-h-[56px] border-b border-gray-800 bg-gray-900 flex items-center justify-between px-4 lg:px-6 z-20">
+        <div class="flex items-center gap-3">
+            <i class="fa-brands fa-connectdevelop text-white text-xl"></i>
+            <h1 class="text-lg font-bold tracking-widest uppercase">God Node <span class="text-xs text-gray-400 font-normal ml-1 border border-gray-700 px-1 rounded">V2.0</span></h1>
         </div>
-        <div class="section">
-            <h3>Directive Input</h3>
-            <div class="input-group">
-                <input type="password" id="masterPin" placeholder="PIN (7777)" value="7777" style="max-width: 100px;">
-                <select id="targetSystem" style="flex-grow: 1;">
-                    <option value="generate_game">Target: Game Generation Swarm</option>
-                    <option value="universal_nexus">Target: Multi-Brain Routing</option>
-                    <option value="self_evolution">Target: Auto-Evolution (Direct GitHub Push)</option>
-                </select>
+        
+        <div class="flex items-center gap-4">
+            <!-- Google Drive Status -->
+            <div class="hidden md:flex items-center gap-2 text-xs font-mono text-gray-400 border border-gray-800 bg-black px-3 py-1 rounded">
+                <i class="fa-brands fa-google-drive"></i>
+                <span id="drive-status">G-Drive Sync: ONLINE</span>
             </div>
-            <div class="input-group">
-                <input type="text" id="directiveInput" placeholder="Type your God Command here...">
-                <button onclick="executeCommand()">Execute</button>
+            
+            <!-- Server Status -->
+            <div class="flex items-center gap-2 text-xs font-mono">
+                <div id="status-dot" class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                <span class="hidden sm:inline">ENGINE ACTIVE</span>
             </div>
+            <button class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-bars"></i></button>
         </div>
-        <div class="section">
-            <h3>Task Status Monitor</h3>
-            <div class="input-group">
-                <input type="text" id="taskIdInput" placeholder="Enter Task ID to check progress...">
-                <button onclick="checkTaskStatus()" style="background: #ffffff; color: #000000;">Check Status</button>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
+        
+        <!-- SIDEBAR (Assets & Exports) - Hidden on mobile, toggleable -->
+        <aside class="w-full md:w-64 border-r border-gray-800 bg-black flex flex-col hidden md:flex z-10 h-48 md:h-full">
+            
+            <!-- Export Tools -->
+            <div class="p-4 border-b border-gray-800">
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Deployment</h3>
+                <div class="flex flex-col gap-2">
+                    <button onclick="triggerExport('web')" class="w-full bg-gray-900 hover:bg-white hover:text-black text-white text-xs py-2 px-3 border border-gray-800 rounded transition duration-200 flex items-center justify-between">
+                        <span>Web (.ZIP)</span> <i class="fa-solid fa-box-archive"></i>
+                    </button>
+                    <button onclick="triggerExport('mobile')" class="w-full bg-gray-900 hover:bg-white hover:text-black text-white text-xs py-2 px-3 border border-gray-800 rounded transition duration-200 flex items-center justify-between">
+                        <span>Mobile (.APK)</span> <i class="fa-solid fa-mobile-screen"></i>
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="section" style="margin-bottom: 0;">
-            <h3>System Output</h3>
-            <div class="terminal" id="terminalOutput">
-                <b>SYSTEM BOOT COMPLETE.</b><br>Awaiting commands...<br>
+
+            <!-- Google Drive Asset Store -->
+            <div class="flex-1 p-4 flex flex-col overflow-hidden">
+                <h3 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex justify-between">
+                    <span>G-Drive Assets</span>
+                    <i class="fa-solid fa-cloud-arrow-down cursor-pointer hover:text-white" onclick="fetchDriveAssets()"></i>
+                </h3>
+                <div id="asset-list" class="flex-1 overflow-y-auto space-y-2">
+                    <!-- Assets will be loaded here from G-Drive API -->
+                    <div class="text-xs text-gray-400 border border-gray-800 p-2 rounded flex justify-between items-center hover:border-gray-400 cursor-pointer">
+                        <span><i class="fa-solid fa-cube mr-2"></i> Player_Car.glb</span>
+                        <span class="text-[9px]">1.2MB</span>
+                    </div>
+                </div>
             </div>
-        </div>
+        </aside>
+
+        <!-- CENTER STAGE (Game Canvas) -->
+        <main class="flex-1 relative bg-gray-900 flex flex-col">
+            
+            <!-- Loading Overlay -->
+            <div id="loading-overlay" class="absolute inset-0 bg-black/90 z-20 hidden flex-col items-center justify-center">
+                <i class="fa-solid fa-circle-notch text-3xl animate-spin-slow mb-4"></i>
+                <h2 class="text-lg font-bold tracking-widest uppercase mb-1">Processing Directive</h2>
+                <p id="loading-text" class="text-xs text-gray-400 font-mono">MultiBrainRouter calculating...</p>
+            </div>
+
+            <!-- Game Iframe -->
+            <div class="flex-1 w-full h-full p-2 md:p-4">
+                <iframe id="game-frame" class="w-full h-full bg-black border border-gray-800 rounded-lg shadow-2xl" sandbox="allow-scripts allow-same-origin allow-pointer-lock"></iframe>
+            </div>
+
+            <!-- BOTTOM INPUT BAR -->
+            <div class="h-auto min-h-[70px] border-t border-gray-800 bg-black p-3 flex items-end gap-2 md:gap-4">
+                
+                <div class="flex-1 bg-gray-900 border border-gray-700 rounded-lg flex items-center px-3 py-2 focus-within:border-white transition-colors relative">
+                    
+                    <!-- Mic Button & Wave Animation -->
+                    <button id="mic-btn" onclick="toggleMic()" class="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-800 transition mr-2 relative">
+                        <i id="mic-icon" class="fa-solid fa-microphone"></i>
+                        <!-- Hidden Audio Wave Bars -->
+                        <div id="mic-wave" class="absolute inset-0 flex items-center justify-center gap-[2px] hidden">
+                            <div class="wave-bar w-1 h-3 bg-gray-400 rounded-full"></div>
+                            <div class="wave-bar w-1 h-5 bg-gray-400 rounded-full"></div>
+                            <div class="wave-bar w-1 h-3 bg-gray-400 rounded-full"></div>
+                            <div class="wave-bar w-1 h-4 bg-gray-400 rounded-full"></div>
+                        </div>
+                    </button>
+
+                    <!-- Text Input -->
+                    <textarea id="prompt-input" rows="1" class="w-full bg-transparent outline-none text-white text-sm font-mono placeholder-gray-500 resize-none py-1" placeholder="Define reality... (e.g. Build a 3D racing game)"></textarea>
+                </div>
+                
+                <!-- Send Button -->
+                <button id="send-btn" onclick="submitDirective()" class="h-10 px-5 bg-white text-black font-bold text-sm uppercase tracking-wider rounded-lg hover:bg-gray-200 transition-colors flex items-center justify-center">
+                    <i class="fa-solid fa-arrow-up"></i>
+                </button>
+            </div>
+        </main>
     </div>
+
     <script>
-        let apiVault = { "gemini": [], "openai": [], "openrouter": [], "gdrive": [] };
-        const terminal = document.getElementById('terminalOutput');
-        function logToTerminal(msg, isBold = false) {
-            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-            const content = isBold ? `<b>${msg}</b>` : msg;
-            terminal.innerHTML += `<br>[${time}] ${content}`;
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-        function addApiKey() {
-            const provider = document.getElementById('apiProvider').value;
-            const key = document.getElementById('apiKeyInput').value.trim();
-            if (key) {
-                if (!apiVault[provider].includes(key)) {
-                    apiVault[provider].push(key);
-                    document.getElementById('apiKeyInput').value = '';
-                    updateVaultDisplay();
-                    logToTerminal(`Key injected successfully for: ${provider.toUpperCase()}`, true);
-                }
+        // DOM Elements
+        const promptInput = document.getElementById('prompt-input');
+        const gameFrame = document.getElementById('game-frame');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+        const micBtn = document.getElementById('mic-btn');
+        const micIcon = document.getElementById('mic-icon');
+        const micWave = document.getElementById('mic-wave');
+
+        let isRecording = false;
+        let recognition = null;
+        let currentGameId = null;
+
+        // Auto-resize textarea
+        promptInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight < 100 ? this.scrollHeight : 100) + 'px';
+        });
+
+        // Submit on Enter (Shift+Enter for new line)
+        promptInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitDirective();
+            }
+        });
+
+        // ==========================================
+        // 1. WEB SPEECH API (Voice Command Logic)
+        // ==========================================
+        function initSpeechRecognition() {
+            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US'; // Can be changed based on need
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    micIcon.classList.add('hidden');
+                    micWave.classList.remove('hidden');
+                    micBtn.classList.add('mic-active');
+                    promptInput.placeholder = "Listening...";
+                };
+
+                recognition.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    promptInput.value = transcript;
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech Error:", event.error);
+                    stopMicUI();
+                };
+
+                recognition.onend = () => {
+                    if (isRecording) {
+                        stopMicUI();
+                        // Optional: Auto-submit when speaking stops
+                        // submitDirective(); 
+                    }
+                };
+            } else {
+                console.warn("Speech Recognition API not supported in this browser.");
             }
         }
-        function updateVaultDisplay() {
-            let html = '';
-            for (const [provider, keys] of Object.entries(apiVault)) {
-                if (keys.length > 0) html += `<div class="vault-item">${provider.toUpperCase()} (${keys.length})</div>`;
+
+        function toggleMic() {
+            if (!recognition) initSpeechRecognition();
+            if (!recognition) {
+                alert("Voice commands require Chrome/Edge and HTTPS.");
+                return;
             }
-            document.getElementById('vaultDisplay').innerHTML = html || 'Status: No keys loaded.';
+
+            if (isRecording) {
+                recognition.stop();
+                stopMicUI();
+            } else {
+                promptInput.value = ''; // Clear previous text
+                recognition.start();
+            }
         }
-        async function executeCommand() {
-            const pin = document.getElementById('masterPin').value;
-            const target = document.getElementById('targetSystem').value;
-            const directive = document.getElementById('directiveInput').value;
-            if (!directive || !pin) { logToTerminal('ERROR: PIN and Directive are required.'); return; }
-            logToTerminal(`Executing Directive: "${directive}"...`, true);
+
+        function stopMicUI() {
+            isRecording = false;
+            micIcon.classList.remove('hidden');
+            micWave.classList.add('hidden');
+            micBtn.classList.remove('mic-active');
+            promptInput.placeholder = "Define reality...";
+        }
+
+        // ==========================================
+        // 2. CORE BACKEND CONNECTION (API Router)
+        // ==========================================
+        async function submitDirective() {
+            const directive = promptInput.value.trim();
+            if (!directive) return;
+
+            // Reset UI
+            promptInput.value = '';
+            promptInput.style.height = 'auto';
+            loadingOverlay.classList.remove('hidden');
+            
+            // Checking if it's a Live Edit vs New Game
+            const isLiveEdit = currentGameId && (directive.toLowerCase().includes("add") || directive.toLowerCase().includes("change"));
+
+            if (isLiveEdit) {
+                loadingText.innerText = "Hot-Reloading AST via Vibe Coder...";
+                await sendToBackend(directive, "live_edit");
+            } else {
+                loadingText.innerText = "Orchestrator analyzing Intent...";
+                await sendToBackend(directive, "new_generation");
+            }
+        }
+
+        async function sendToBackend(directive, type) {
             try {
-                const url = window.location.hostname === 'localhost' ? 'http://localhost:8000/execute' : '/execute';
-                const response = await fetch(url, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_vault: apiVault, target_system: target, directive: directive, master_pin: pin })
+                // Pointing to the FastAPI main.py endpoint
+                const response = await fetch('/api/v2/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        directive: directive,
+                        master_pin: "7777",
+                        context_data: { game_id: currentGameId, type: type }
+                    })
                 });
+
                 const data = await response.json();
-                if(data.task_id) {
-                    logToTerminal(`BACKGROUND TASK STARTED!`);
-                    logToTerminal(`<b>TASK ID: ${data.task_id}</b>`);
-                    logToTerminal(`Copy this ID and paste it in the 'Task Status Monitor' below to check progress.`);
-                    document.getElementById('taskIdInput').value = data.task_id;
+                
+                if (data.status === "PROCESSING" || data.status === "ACCEPTED") {
+                    pollTaskStatus(data.task_id);
                 } else {
-                    logToTerminal(JSON.stringify(data, null, 2).replace(/\n/g, '<br>'));
+                    throw new Error(data.detail || "Server rejected request.");
                 }
-            } catch (error) { logToTerminal(`NETWORK ERROR: ${error.message}`); }
+            } catch (error) {
+                console.error("Connection Error:", error);
+                loadingText.innerText = `[CRITICAL ERROR] ${error.message}`;
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 3000);
+            }
         }
-        async function checkTaskStatus() {
-            const pin = document.getElementById('masterPin').value;
-            const taskId = document.getElementById('taskIdInput').value.trim();
-            if (!taskId || !pin) { logToTerminal('ERROR: PIN and Task ID are required to check status.'); return; }
-            logToTerminal(`Checking status for Task: ${taskId}...`);
+
+        // Polling the QA Tester & MultiAPI results
+        async function pollTaskStatus(taskId) {
+            const pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/v2/status/${taskId}`);
+                    if (!res.ok) throw new Error("Status check failed.");
+                    const data = await res.json();
+
+                    if (data.status === "SUCCESS") {
+                        clearInterval(pollInterval);
+                        loadingOverlay.classList.add('hidden');
+                        
+                        // Extract HTML logic from GodBrain
+                        let finalHtml = data.result?.final_build?.verified_code || data.result?.final_build || "";
+                        
+                        // Error handling if AI didn't return HTML
+                        if (!finalHtml.includes("<html") && !finalHtml.includes("<canvas")) {
+                            finalHtml = `<div style='color:white; font-family:monospace; padding:20px;'>
+                                <h3>[QA TESTER WARNING]</h3>
+                                <p>Engine returned logic without a UI shell. Raw output:</p>
+                                <pre>${JSON.stringify(finalHtml, null, 2)}</pre>
+                            </div>`;
+                        }
+
+                        // Inject into Iframe safely
+                        currentGameId = "GN_Game_" + Date.now();
+                        const doc = gameFrame.contentWindow.document;
+                        doc.open();
+                        doc.write(finalHtml);
+                        doc.close();
+
+                    } else if (data.status === "FAILED") {
+                        clearInterval(pollInterval);
+                        loadingText.innerText = `[QA FAILED] ${data.result?.error || 'Unknown Error'}`;
+                        setTimeout(() => loadingOverlay.classList.add('hidden'), 4000);
+                    } else {
+                        // Dynamic loading text updates based on progress
+                        if(data.progress < 30) loadingText.innerText = "Master Router allocating resources...";
+                        else if(data.progress < 70) loadingText.innerText = "Asset Generator connecting to G-Drive...";
+                        else loadingText.innerText = "QA Tester executing Headless Simulation...";
+                    }
+                } catch (e) {
+                    clearInterval(pollInterval);
+                    loadingText.innerText = "[NETWORK] Lost connection to God Node.";
+                    setTimeout(() => loadingOverlay.classList.add('hidden'), 3000);
+                }
+            }, 2500); // Poll every 2.5 seconds
+        }
+
+        // ==========================================
+        // 3. EXPORT CAPABILITIES (Universal Builder)
+        // ==========================================
+        async function triggerExport(platform) {
+            if (!currentGameId) {
+                alert("No active game in the reality canvas. Generate a game first.");
+                return;
+            }
+            
+            // Connects to game_compilers/universal_builder.py via main.py
+            alert(`[UNIVERSAL BUILDER] Initiating CI/CD pipeline for ${platform.toUpperCase()}. This may take a moment.`);
+            
             try {
-                const url = window.location.hostname === 'localhost' ? 'http://localhost:8000/check_status' : '/check_status';
-                const response = await fetch(url, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ task_id: taskId, master_pin: pin })
+                const res = await fetch('/api/v2/export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        game_id: currentGameId,
+                        target_platform: platform,
+                        master_pin: "7777"
+                    })
                 });
-                const data = await response.json();
-                const formatted = JSON.stringify(data, null, 2).replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-                logToTerminal(`<div style="background:#eaeaea; padding:10px; margin-top:5px;">${formatted}</div>`);
-            } catch (error) { logToTerminal(`NETWORK ERROR: ${error.message}`); }
+                
+                const data = await res.json();
+                if (data.status === "SUCCESS") {
+                    alert(`Build Complete! File saved to: ${data.file_path}`);
+                    // In a real browser context, trigger a file download here
+                } else {
+                    alert(`Build Failed: ${data.build_logs}`);
+                }
+            } catch(e) {
+                alert("Connection to Compiler Engine lost.");
+            }
+        }
+        
+        // Stub for fetching G-Drive assets (Would connect to db_manager.py)
+        function fetchDriveAssets() {
+            const btn = document.querySelector('.fa-cloud-arrow-down');
+            btn.classList.add('animate-spin');
+            setTimeout(() => btn.classList.remove('animate-spin'), 1000);
         }
     </script>
 </body>
-    </html>
-                        
+            </html>
