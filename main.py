@@ -12,6 +12,7 @@ import os
 import uuid
 import time
 import logging
+import inspect
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -29,6 +30,22 @@ logger = logging.getLogger("GodNode.Main")
 # 2. GLOBAL SYSTEM REGISTRY (The Backbone)
 # =====================================================================
 SYSTEM_REGISTRY = {}
+
+# Lightweight helper to call functions that may be sync or async without blocking
+async def call_maybe_async(fn, *args, **kwargs):
+    """Call fn with args. If it returns an awaitable, await it; otherwise run in threadpool.
+    This preserves non-blocking behavior for both sync and async implementations in subsystems.
+    """
+    try:
+        result = fn(*args, **kwargs)
+    except Exception:
+        # If the callable itself raises synchronously, re-raise to be handled by caller
+        raise
+
+    if inspect.isawaitable(result):
+        return await result
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, lambda: result)
 
 # A. Security & Economy
 try:
@@ -177,7 +194,7 @@ async def lifespan(app: FastAPI):
     logger.info("🚀 GOD NODE V2 BOOT SEQUENCE INITIATED...")
     
     if SYSTEM_REGISTRY.get("connection_pool"):
-        await SYSTEM_REGISTRY["connection_pool"].startup()
+        await call_maybe_async(SYSTEM_REGISTRY["connection_pool"].startup)
     
     loop_task = asyncio.create_task(engine_tick_loop())
     yield 
@@ -185,7 +202,7 @@ async def lifespan(app: FastAPI):
     logger.info("🛑 GOD NODE V2 SHUTDOWN SEQUENCE INITIATED...")
     loop_task.cancel()
     if SYSTEM_REGISTRY.get("connection_pool"):
-        await SYSTEM_REGISTRY["connection_pool"].shutdown()
+        await call_maybe_async(SYSTEM_REGISTRY["connection_pool"].shutdown)
 
 # =====================================================================
 # 4. FASTAPI INITIALIZATION
@@ -217,7 +234,7 @@ class GodCommandPayload(BaseModel):
 
 class BuildExportPayload(BaseModel):
     game_id: str = Field(...)
-    target_platform: str = Field(pattern="^(web|mobile|pc)$")
+    target_platform: str = Field(..., regex="^(web|mobile|pc)$")
     master_pin: str = Field(...)
 
 class WebRTCOfferPayload(BaseModel):
@@ -238,7 +255,7 @@ async def process_god_command_task(task_id: str, directive: str):
     try:
         # STEP 1: Routing & Resource Allocation
         if not router: raise RuntimeError("Master Router offline.")
-        routing_plan = await router.analyze_and_allocate(directive)
+        routing_plan = await call_maybe_async(router.analyze_and_allocate, directive)
         active_tasks_registry[task_id]["progress"] = 30
         active_tasks_registry[task_id]["status"] = "ORCHESTRATING_SWARM"
 
@@ -248,10 +265,7 @@ async def process_god_command_task(task_id: str, directive: str):
         target_platform = routing_plan.get("architecture", {}).get("target_platform", "web_html5")
         agent_count = 10 if target_platform != "web_html5" else 5 # Scale agents based on platform
         
-        swarm_result = await orchestrator.generate_full_game_with_swarm(
-            prompt=directive, 
-            agent_count=agent_count
-        )
+        swarm_result = await call_maybe_async(orchestrator.generate_full_game_with_swarm, prompt=directive, agent_count=agent_count)
         active_tasks_registry[task_id]["progress"] = 90
         
         if swarm_result.get("status") == "FAILED":
@@ -289,6 +303,7 @@ async def execute_command(payload: GodCommandPayload, bg_tasks: BackgroundTasks)
         raise HTTPException(status_code=403, detail="ACCESS DENIED")
     
     task_id = f"TASK_{uuid.uuid4().hex[:8]}"
+    # Offload the orchestration pipeline to background tasks to avoid blocking the request loop
     bg_tasks.add_task(process_god_command_task, task_id, payload.directive)
     return JSONResponse(status_code=202, content={"status": "PROCESSING", "task_id": task_id})
 
@@ -301,7 +316,7 @@ async def check_status(task_id: str):
     return JSONResponse(status_code=200, content=task)
 
 @app.post("/api/v2/export")
-async def trigger_universal_build(payload: BuildExportPayload):
+async def trigger_universal_build(payload: BuildExportPayload, bg_tasks: BackgroundTasks):
     """Triggers the game_compilers/universal_builder.py to create ZIP/APK/EXE."""
     if payload.master_pin != MASTER_PIN:
         raise HTTPException(status_code=403, detail="ACCESS DENIED")
@@ -309,19 +324,36 @@ async def trigger_universal_build(payload: BuildExportPayload):
     builder = SYSTEM_REGISTRY.get("builder")
     if not builder: 
         raise HTTPException(status_code=500, detail="Universal Builder offline.")
-    
-    # In a real environment, pull the exact code from DB Vault
+
+    # We will run the build in the background to keep the endpoint responsive
+    build_task_id = f"BUILD_{uuid.uuid4().hex[:8]}"
+    active_tasks_registry[build_task_id] = {"status": "QUEUED", "progress": 0, "result": None}
+
+    async def _run_build(task_id_local, config):
+        try:
+            active_tasks_registry[task_id_local]["status"] = "BUILDING"
+            active_tasks_registry[task_id_local]["progress"] = 10
+            result = await call_maybe_async(builder.build_game, config)
+            active_tasks_registry[task_id_local]["status"] = "SUCCESS"
+            active_tasks_registry[task_id_local]["progress"] = 100
+            active_tasks_registry[task_id_local]["result"] = result
+        except Exception as e:
+            logger.error(f"Build {task_id_local} failed: {e}")
+            active_tasks_registry[task_id_local]["status"] = "FAILED"
+            active_tasks_registry[task_id_local]["result"] = {"error": str(e)}
+
     mock_config = {
         "game_id": payload.game_id,
         "target_platform": payload.target_platform,
         "html_content": "<!-- Compiled by God Node -->\n<canvas></canvas>",
         "js_content": "console.log('Game Initialized');"
     }
-    result = await builder.build_game(mock_config)
-    return JSONResponse(status_code=200, content=result)
+
+    bg_tasks.add_task(_run_build, build_task_id, mock_config)
+    return JSONResponse(status_code=202, content={"status": "BUILD_QUEUED", "build_task_id": build_task_id})
 
 @app.post("/api/v2/evolve")
-async def trigger_self_evolution(pin: str):
+async def trigger_self_evolution(pin: str, bg_tasks: BackgroundTasks):
     """Triggers the God Node to scan itself and write missing code."""
     if pin != MASTER_PIN:
         raise HTTPException(status_code=403, detail="ACCESS DENIED")
@@ -330,8 +362,24 @@ async def trigger_self_evolution(pin: str):
     if not evolution_engine:
         raise HTTPException(status_code=500, detail="Evolution Engine Offline.")
         
-    result = await evolution_engine.evolve()
-    return JSONResponse(status_code=200, content=result)
+    task_id = f"EVOLVE_{uuid.uuid4().hex[:8]}"
+    active_tasks_registry[task_id] = {"status": "QUEUED", "progress": 0, "result": None}
+
+    async def _run_evolve(task_id_local):
+        try:
+            active_tasks_registry[task_id_local]["status"] = "RUNNING"
+            active_tasks_registry[task_id_local]["progress"] = 10
+            result = await call_maybe_async(evolution_engine.evolve)
+            active_tasks_registry[task_id_local]["status"] = "SUCCESS"
+            active_tasks_registry[task_id_local]["progress"] = 100
+            active_tasks_registry[task_id_local]["result"] = result
+        except Exception as e:
+            logger.error(f"Evolve {task_id_local} failed: {e}")
+            active_tasks_registry[task_id_local]["status"] = "FAILED"
+            active_tasks_registry[task_id_local]["result"] = {"error": str(e)}
+
+    bg_tasks.add_task(_run_evolve, task_id)
+    return JSONResponse(status_code=202, content={"status": "EVOLVE_QUEUED", "task_id": task_id})
 
 @app.post("/api/v2/stream/offer")
 async def webrtc_handshake(payload: WebRTCOfferPayload):
@@ -341,11 +389,10 @@ async def webrtc_handshake(payload: WebRTCOfferPayload):
         raise HTTPException(status_code=500, detail="Pixel Stream Engine offline.")
     
     try:
-        result = await stream_engine.create_stream_connection(
-            player_id=payload.player_id, 
-            offer_sdp=payload.sdp, 
-            offer_type=payload.type
-        )
+        result = await call_maybe_async(stream_engine.create_stream_connection,
+                                        player_id=payload.player_id,
+                                        offer_sdp=payload.sdp,
+                                        offer_type=payload.type)
         return JSONResponse(status_code=200, content=result)
     except Exception as e:
         logger.error(f"WebRTC Handshake failed: {e}")
@@ -354,6 +401,21 @@ async def webrtc_handshake(payload: WebRTCOfferPayload):
 # =====================================================================
 # 8. WEBSOCKET ENDPOINTS (REAL-TIME)
 # =====================================================================
+
+async def _start_heartbeat(websocket: WebSocket, interval: float = 20.0):
+    """Send periodic heartbeats to keep some proxies from dropping the connection.
+    The client should ignore 'heartbeat' messages — they are lightweight.
+    """
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                await websocket.send_json({"type": "heartbeat", "ts": time.time()})
+            except Exception:
+                break
+    except asyncio.CancelledError:
+        return
+
 @app.websocket("/live-edit/{game_id}")
 async def ws_vibe_coder(websocket: WebSocket, game_id: str):
     """CRDT-powered Hot Reloader endpoint for Vibe Coding."""
@@ -364,13 +426,43 @@ async def ws_vibe_coder(websocket: WebSocket, game_id: str):
         
     # Accept the websocket before handing to the reloader connection manager
     await websocket.accept()
-    await reloader.connection_manager.connect(game_id, websocket)
+
+    # try to use async connect if available, otherwise call synchronously in executor
+    try:
+        await call_maybe_async(reloader.connection_manager.connect, game_id, websocket)
+    except Exception as e:
+        logger.error(f"Failed to register reloader connection for {game_id}: {e}")
+        await websocket.close(code=1011, reason="Failed to register connection")
+        return
+
+    heartbeat_task = asyncio.create_task(_start_heartbeat(websocket))
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=60.0)
+            except asyncio.TimeoutError:
+                # allow heartbeat to manage keepalive; loop around
+                continue
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"[HOT-RELOAD WS ERROR] {e}")
+                break
+
+            # Process incoming update
             logger.debug(f"[HOT-RELOAD] Update: {data}")
-    except WebSocketDisconnect:
-        reloader.connection_manager.disconnect(game_id)
+            # Optionally hand data to reloader safely
+            try:
+                await call_maybe_async(reloader.handle_update, game_id, data)
+            except Exception:
+                # Keep alive even if handler fails
+                logger.exception("Error while handling hot-reload update")
+    finally:
+        heartbeat_task.cancel()
+        try:
+            await call_maybe_async(reloader.connection_manager.disconnect, game_id)
+        except Exception:
+            logger.exception(f"Failed to disconnect reloader for {game_id}")
 
 @app.websocket("/ws/multiplayer/{player_id}")
 async def ws_multiplayer_nexus(websocket: WebSocket, player_id: str):
@@ -380,16 +472,44 @@ async def ws_multiplayer_nexus(websocket: WebSocket, player_id: str):
         await websocket.close(code=1011, reason="Nexus Offline")
         return
         
-    # Ensure websocket is accepted before using
     await websocket.accept()
-    await nexus.connect_player(player_id, websocket)
+
+    try:
+        await call_maybe_async(nexus.connect_player, player_id, websocket)
+    except Exception as e:
+        logger.error(f"Failed to connect player {player_id}: {e}")
+        await websocket.close(code=1011, reason="Failed to register player")
+        return
+
+    heartbeat_task = asyncio.create_task(_start_heartbeat(websocket))
     try:
         while True:
-            data = await websocket.receive_json()
-            await nexus.process_action(player_id, data)
-    except Exception as e:
-        logger.error(f"[NEXUS WS ERROR] Player {player_id}: {e}")
-        nexus.disconnect_player(player_id)
+            try:
+                data = await asyncio.wait_for(websocket.receive_json(), timeout=60.0)
+            except asyncio.TimeoutError:
+                continue
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"[NEXUS WS RECEIVE ERROR] {e}")
+                break
+
+            try:
+                await call_maybe_async(nexus.process_action, player_id, data)
+            except Exception as e:
+                logger.exception(f"Error processing action for player {player_id}: {e}")
+                # Disconnect player gracefully from server-side if processing fails critically
+                try:
+                    await call_maybe_async(nexus.disconnect_player, player_id)
+                except Exception:
+                    logger.exception(f"Failed to disconnect player {player_id} after error")
+                break
+    finally:
+        heartbeat_task.cancel()
+        try:
+            await call_maybe_async(nexus.disconnect_player, player_id)
+        except Exception:
+            logger.exception(f"Failed to disconnect player {player_id} on cleanup")
 
 if __name__ == "__main__":
     import uvicorn
