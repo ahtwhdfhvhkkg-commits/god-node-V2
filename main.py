@@ -362,6 +362,8 @@ async def ws_vibe_coder(websocket: WebSocket, game_id: str):
         await websocket.close(code=1011, reason="Hot Reloader Offline")
         return
         
+    # Accept the websocket before handing to the reloader connection manager
+    await websocket.accept()
     await reloader.connection_manager.connect(game_id, websocket)
     try:
         while True:
@@ -378,6 +380,8 @@ async def ws_multiplayer_nexus(websocket: WebSocket, player_id: str):
         await websocket.close(code=1011, reason="Nexus Offline")
         return
         
+    # Ensure websocket is accepted before using
+    await websocket.accept()
     await nexus.connect_player(player_id, websocket)
     try:
         while True:
