@@ -1,9 +1,3 @@
-"""
-simulation_scheduler/config.py
-
-Configuration models for the simulation scheduler.
-"""
-
 from __future__ import annotations
 from dataclasses import dataclass, field
 
@@ -15,25 +9,28 @@ class FrameConfig:
 
 @dataclass(slots=True, frozen=True)
 class QueueConfig:
-    """Scheduling queue configuration."""
-    # मैंने यहाँ नाम एकदम तुम्हारी queue.py के हिसाब से मैच कर दिए हैं
+    """
+    Scheduling queue configuration.
+    Property names are explicitly aligned with PriorityTaskQueue in queue.py
+    to prevent AttributeError runtime failures.
+    """
     critical_capacity: int = 512      
-    high_capacity: int = 1024         
-    normal_capacity: int = 2048       
-    low_capacity: int = 4096          
+    high_priority_capacity: int = 1024         
+    normal_priority_capacity: int = 2048       
+    low_priority_capacity: int = 4096          
 
 @dataclass(slots=True, frozen=True)
 class BatchConfig:
     """Micro-batch execution configuration."""
-    max_batch_size: int = 32
+    max_batch_size: int = 64
     max_batch_wait_ms: int = 2
 
 @dataclass(slots=True, frozen=True)
 class MemoryBudget:
-    """Memory budget limits."""
-    max_memory_mb: int = 512
-    max_cached_results: int = 1024
-    max_cached_batches: int = 256
+    """Memory budget limits for high-speed simulation."""
+    max_memory_mb: int = 1024
+    max_cached_results: int = 4096
+    max_cached_batches: int = 512
 
 @dataclass(slots=True, frozen=True)
 class SchedulerConfig:
@@ -43,6 +40,6 @@ class SchedulerConfig:
     batch: BatchConfig = field(default_factory=BatchConfig)
     memory: MemoryBudget = field(default_factory=MemoryBudget)
     
-    worker_count: int = 4
+    worker_count: int = 8
     enable_inference_cache: bool = True
-    cache_ttl_seconds: int = 1
+    cache_ttl_seconds: int = 5
