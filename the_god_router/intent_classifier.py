@@ -58,49 +58,43 @@ class GameArchitectureSchema(BaseModel):
 # 3. THE MASTER ROUTER ENGINE
 # ------------------------------------------------------------------
 class MasterIntentRouter:
+    """
+    Enterprise Intent Classifier & Resource Budgeting Engine.
+    Estimates Big-O complexity and allocates server RAM/CPU threads.
+    """
     def __init__(self):
         self.version = "10.0.0-Enterprise"
         self.active_routings: int = 0
-        logger.info("Initializing Enterprise Intent Router... System Online.")
+        logger.info("Initializing Intent Classifier Engine... Online.")
 
     async def analyze_and_allocate(self, prompt: str) -> Dict[str, Any]:
         """
-        The core pipeline: Reads prompt -> Calls Gateway -> Validates Schema -> Allocates Server Resources.
+        Reads user prompt -> Evaluates Complexity -> Allocates Server Resources -> Returns Architecture Plan.
         """
         self.active_routings += 1
         request_id = f"REQ-{int(time.time())}-{self.active_routings}"
-        logger.info(f"[{request_id}] Incoming Directive: '{prompt[:50]}...'")
+        logger.info(f"[{request_id}] Analyzing Directive: '{prompt[:50]}...'")
 
-        # System prompt forcing strict JSON adherence
         system_prompt = (
             "You are the Master Architect API for God Node V2. "
-            "Analyze the user's game request. You MUST return ONLY a raw, valid JSON object "
-            "that strictly matches the following Pydantic schema structure. Do NOT wrap in markdown.\n\n"
-            "Schema Requirements:\n"
+            "Analyze the request and return ONLY a valid JSON object following this schema:\n"
             "- target_platform: 'web_html5', 'mobile_apk', 'pc_exe', or 'cloud_stream'\n"
-            "- complexity_class: Estimate Big-O or 'AAA'\n"
+            "- complexity_class: 'O(1)', 'O(N)', 'O(N^2)', or 'AAA'\n"
             "- engine_config: {use_cpp_bridge: bool, use_webrtc_stream: bool, use_multiplayer_nexus: bool, use_local_storage_only: bool}\n"
             "- resource_limits: {estimated_ram_mb: int, max_concurrent_threads: int, priority_level: int}\n"
-            "- required_agents: list of strings\n"
-            "- build_steps_dependency_graph: list of strings defining execution order\n\n"
-            "Logic Rule: If the user wants a simple web game (like for CrazyGames), set use_cpp_bridge AND use_webrtc_stream to FALSE. "
+            "- required_agents: list of string role names\n"
+            "- build_steps_dependency_graph: list of step descriptions\n\n"
             f"User Prompt: {prompt}"
         )
 
         try:
-            # 1. Fetch AI Response via existing Gateway
             gateway = GatewayRouter.get_gateway(service_type="brain")
             raw_response = await asyncio.to_thread(gateway.generate, system_prompt)
             
-            # 2. Deep Clean and Parse
             clean_json = self._sanitize_llm_output(raw_response)
             parsed_data = json.loads(clean_json)
 
-            # 3. Pydantic Strict Validation
             validated_architecture = GameArchitectureSchema(**parsed_data)
-            logger.info(f"[{request_id}] Validation SUCCESS. Target: {validated_architecture.target_platform}")
-
-            # 4. Apply Server Allocations (The Replit Magic)
             allocation_report = self._apply_server_allocations(validated_architecture, request_id)
 
             return {
@@ -110,17 +104,13 @@ class MasterIntentRouter:
                 "server_allocation": allocation_report
             }
 
-        except ValidationError as ve:
-            logger.error(f"[{request_id}] Schema Validation Failed! AI hallucinated wrong keys. {ve}")
-            return self._emergency_fallback_routing(prompt)
         except Exception as e:
-            logger.critical(f"[{request_id}] FATAL ROUTING ERROR: {str(e)}")
+            logger.warning(f"[{request_id}] Routing using Safe Fallback due to: {e}")
             return self._emergency_fallback_routing(prompt)
         finally:
             self.active_routings -= 1
 
     def _sanitize_llm_output(self, text: str) -> str:
-        """Removes markdown and attempts to extract just the JSON dictionary."""
         text = text.replace("```json", "").replace("```", "").strip()
         start = text.find('{')
         end = text.rfind('}')
@@ -129,13 +119,6 @@ class MasterIntentRouter:
         return text
 
     def _apply_server_allocations(self, arch: GameArchitectureSchema, req_id: str) -> Dict[str, Any]:
-        """
-        Dynamically adjusts the God Node server based on the required game.
-        Like a Kubernetes orchestrator allocating pods.
-        """
-        logger.debug(f"[{req_id}] Allocating resources. Requested RAM: {arch.resource_limits.estimated_ram_mb}MB")
-        
-        # Determine Priority Enum mapping to the existing SimulationScheduler
         priority_map = {
             0: SimulationPriority.CRITICAL,
             1: SimulationPriority.HIGH,
@@ -144,22 +127,14 @@ class MasterIntentRouter:
         }
         engine_priority = priority_map.get(arch.resource_limits.priority_level, SimulationPriority.NORMAL)
 
-        report = {
-            "cpp_engine_status": "ONLINE" if arch.engine_config.use_cpp_bridge else "BYPASSED (Saving CPU)",
-            "webrtc_status": "ONLINE" if arch.engine_config.use_webrtc_stream else "BYPASSED (Saving Bandwidth)",
+        return {
+            "cpp_engine_status": "ONLINE" if arch.engine_config.use_cpp_bridge else "BYPASSED (Optimized)",
+            "webrtc_status": "ONLINE" if arch.engine_config.use_webrtc_stream else "BYPASSED (Bandwidth Saved)",
             "nexus_status": "ONLINE" if arch.engine_config.use_multiplayer_nexus else "OFFLINE (Singleplayer)",
             "scheduler_priority_assigned": engine_priority.name
         }
 
-        logger.info(f"[{req_id}] Resource Allocation Complete: {report}")
-        return report
-
     def _emergency_fallback_routing(self, prompt: str) -> Dict[str, Any]:
-        """
-        If the AI crashes or hallucinates, the system MUST NOT fail.
-        This provides a safe, standard HTML5 fallback route.
-        """
-        logger.warning("Initiating Emergency Fallback Route (Safe Web Mode).")
         return {
             "status": "FALLBACK_ROUTING",
             "architecture": {
@@ -171,15 +146,10 @@ class MasterIntentRouter:
                     "use_multiplayer_nexus": False,
                     "use_local_storage_only": True
                 },
-                "resource_limits": {
-                    "estimated_ram_mb": 512,
-                    "max_concurrent_threads": 2,
-                    "priority_level": 2
-                },
+                "resource_limits": {"estimated_ram_mb": 512, "max_concurrent_threads": 2, "priority_level": 2},
                 "required_agents": ["DirectorAgent", "MapBuilderAgent"],
                 "build_steps_dependency_graph": ["Define Logic", "Build HTML5 Zip"]
             }
         }
 
-# Singleton Instance for Global Use
 master_router_instance = MasterIntentRouter()
