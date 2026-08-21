@@ -68,3 +68,6 @@ class GodAuth:
         if not secret:
             raise ValueError(f"Secret for {service_name} not found in God Vault.")
         return secret
+# Alias ताकि main.py बिना एरर के GodVault नाम से भी इसे चला सके
+GodVault = GodAuth
+        
