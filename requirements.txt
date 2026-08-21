@@ -1,29 +1,16 @@
-# Core Server (Render Optimized)
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.8.0
 pydantic-settings>=2.4.0
-
-# Async WebSockets (Live Editing & Sync)
+python-multipart>=0.0.9
 websockets>=13.0
 aiohttp>=3.10.0
 python-socketio>=5.11.0
-
-# File Handling (ZIP Compiler)
 aiofiles>=24.1.0
-
-# AI & APIs (The Swarm)
 google-generativeai>=0.8.0
 openai>=1.40.0
-
-# Security & Secrets
 cryptography>=43.0.0
 python-dotenv>=1.0.1
 PyJWT>=2.9.0
-
-# Mathematics for AI (ODRE Matrix)
 numpy>=2.0.0
-
-# AST & Code Quality
 black>=24.8.0
-
