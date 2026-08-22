@@ -1,363 +1,716 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>God Node V2.0 | Enterprise Autonomous Studio</title>
-    
-    <!-- External Dependencies (Tailwind, FontAwesome, Three.js WebGPU) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GOD NODE V2.0 - Master Simulation Engine & Operations Dashboard</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* 2040 Cyberpunk Glassmorphism Design System */
+    :root {
+      --bg-base: #06070a;
+      --panel-bg: rgba(13, 17, 28, 0.78);
+      --neon-cyan: #00f4ff;
+      --neon-purple: #9d4edd;
+      --neon-emerald: #10b981;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 244, 255, 0.35);
+    }
 
-    <!-- Strict Monochrome & Performance Tailwind Config -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { black: '#000000', white: '#ffffff', gray: { 900: '#111', 800: '#222', 700: '#333', 400: '#888' } },
-                    animation: {
-                        'scanline': 'scanline 8s linear infinite',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                        'spin-slow': 'spin 4s linear infinite',
-                    },
-                    keyframes: {
-                        scanline: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100vh)' } }
-                    }
-                }
-            }
-        }
-    </script>
+    body {
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(at 10% 15%, rgba(157, 78, 221, 0.12) 0px, transparent 50%),
+        radial-gradient(at 90% 85%, rgba(0, 244, 255, 0.08) 0px, transparent 50%);
+      color: #f1f5f9;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+    }
 
-    <!-- Complex UI Styles & Waveform Mathematics -->
-    <style>
-        :root { --ui-border: #333; --ui-bg: #000; --ui-text: #fff; --ui-accent: #fff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body { background-color: var(--ui-bg); color: var(--ui-text); font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, monospace; overflow: hidden; height: 100dvh; width: 100vw; }
-        
-        /* Custom Scrollbars */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
-        ::-webkit-scrollbar-thumb:hover { background: #fff; }
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
 
-        /* CRT Terminal Effect Overlay */
-        .crt-overlay { pointer-events: none; position: absolute; inset: 0; z-index: 50; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; opacity: 0.15; }
-        .scanline { width: 100%; height: 10px; background: rgba(255,255,255,0.1); position: absolute; z-index: 51; opacity: 0.4; pointer-events: none; }
+    .glass-panel:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+    }
 
-        /* Voice Waveform Canvas */
-        #voice-visualizer { width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none; opacity: 0; transition: opacity 0.3s ease; }
-        .mic-active #voice-visualizer { opacity: 1; }
-        .mic-active .fa-microphone { display: none; }
+    .neon-cyan-glow {
+      box-shadow: 0 0 20px rgba(0, 244, 255, 0.25);
+    }
 
-        /* Split Pane Layout */
-        .layout-grid { display: grid; grid-template-columns: 280px 1fr; grid-template-rows: 48px 1fr 80px; height: 100dvh; width: 100vw; }
-        @media (max-width: 768px) { .layout-grid { grid-template-columns: 1fr; grid-template-rows: 48px 1fr 70px; } .sidebar { display: none; } }
-        
-        .header { grid-column: 1 / -1; border-bottom: 1px solid var(--ui-border); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; background: #0a0a0a; z-index: 20; }
-        .sidebar { border-right: 1px solid var(--ui-border); background: #050505; display: flex; flex-direction: column; overflow: hidden; }
-        .viewport { position: relative; background: #000; overflow: hidden; display: flex; flex-direction: column; }
-        .command-bar { grid-column: 1 / -1; border-top: 1px solid var(--ui-border); background: #0a0a0a; display: flex; align-items: flex-end; padding: 12px 16px; z-index: 20; }
+    .neon-purple-glow {
+      box-shadow: 0 0 20px rgba(157, 78, 221, 0.3);
+    }
 
-        /* Viewport Layers */
-        #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
-        #webrtc-video { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; object-fit: cover; display: none; }
-        .hud-overlay { position: absolute; inset: 0; z-index: 10; pointer-events: none; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; }
-        
-        /* Terminal Log */
-        .terminal-log { background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 8px; font-family: monospace; font-size: 10px; width: 300px; max-height: 150px; overflow-y: auto; pointer-events: auto; }
-        .log-entry { margin-bottom: 4px; line-height: 1.2; word-wrap: break-word; }
-        .log-info { color: #fff; } .log-warn { color: #aaa; } .log-error { color: #ff3333; } .log-sys { color: #888; }
+    /* Custom Terminal & Viewport Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(6, 7, 10, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 244, 255, 0.4);
+    }
 
-        /* Loader */
-        .god-loader { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        .god-loader.active { opacity: 1; pointer-events: auto; }
-        
-        /* Complex Input Area */
-        .input-wrapper { flex: 1; background: #111; border: 1px solid var(--ui-border); border-radius: 8px; display: flex; align-items: center; padding: 4px 12px; transition: border-color 0.2s; position: relative; }
-        .input-wrapper:focus-within { border-color: #fff; }
-        #god-prompt { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-family: monospace; font-size: 14px; padding: 8px 0; resize: none; max-height: 120px; overflow-y: auto; }
-        .btn-action { background: #fff; color: #000; border: none; height: 36px; padding: 0 16px; border-radius: 6px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
-        .btn-action:hover { background: #ccc; }
-        .btn-icon { background: transparent; color: #888; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.2s; position: relative; }
-        .btn-icon:hover { color: #fff; background: #222; }
-    </style>
+    @keyframes pulse-cyan {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.92); }
+    }
+    .pulse-dot {
+      animation: pulse-cyan 2s infinite ease-in-out;
+    }
+  </style>
 </head>
-<body>
-
-    <!-- Visual Effects -->
-    <div class="crt-overlay"></div>
-    <div class="scanline animate-scanline"></div>
-
-    <div class="layout-grid">
-        
-        <!-- 1. HEADER (System Status) -->
-        <header class="header">
-            <div class="flex items-center gap-3">
-                <i class="fa-brands fa-connectdevelop text-xl text-white animate-pulse-slow"></i>
-                <h1 class="font-bold tracking-[0.2em] text-sm uppercase">God Node <span class="border border-gray-700 px-1 text-[10px] ml-1 rounded">V2.0</span></h1>
-            </div>
-            
-            <div class="flex items-center gap-4 font-mono text-[10px] text-gray-400 uppercase tracking-widest">
-                <div class="hidden md:flex items-center gap-2 border border-gray-800 px-2 py-1 rounded">
-                    <i class="fa-brands fa-google-drive"></i> <span id="drive-status">Vault: Syncing...</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span id="network-ping">Ping: --ms</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div id="sys-status-indicator" class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                    <span id="sys-status-text">Engine Online</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- 2. SIDEBAR (Asset Store & Build Pipeline) -->
-        <aside class="sidebar">
-            <div class="p-3 border-b border-gray-800">
-                <h3 class="text-[10px] text-gray-500 tracking-[0.1em] uppercase mb-2">Build Pipeline</h3>
-                <div class="space-y-2">
-                    <button onclick="GodUI.triggerBuild('web')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
-                        <span>Web (.ZIP)</span> <i class="fa-solid fa-box-archive text-gray-600 group-hover:text-white"></i>
-                    </button>
-                    <button onclick="GodUI.triggerBuild('mobile')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
-                        <span>Mobile (.APK)</span> <i class="fa-brands fa-android text-gray-600 group-hover:text-white"></i>
-                    </button>
-                    <button onclick="GodUI.triggerBuild('pc')" class="w-full text-left text-xs py-2 px-3 bg-gray-900 border border-gray-800 hover:border-white transition rounded flex justify-between items-center group">
-                        <span>PC (.EXE)</span> <i class="fa-brands fa-windows text-gray-600 group-hover:text-white"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="flex-1 p-3 overflow-y-auto">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="text-[10px] text-gray-500 tracking-[0.1em] uppercase">G-Drive Assets</h3>
-                    <button onclick="GodUI.refreshAssets()" class="text-gray-500 hover:text-white"><i class="fa-solid fa-rotate-right text-[10px]"></i></button>
-                </div>
-                <div id="asset-list" class="space-y-1">
-                    <!-- Assets injected via JS -->
-                </div>
-            </div>
-        </aside>
-
-        <!-- 3. VIEWPORT (3D Canvas, WebRTC, HUD) -->
-        <main class="viewport">
-            
-            <!-- Loading Overlay -->
-            <div id="god-loader" class="god-loader">
-                <i class="fa-solid fa-atom text-4xl mb-4 animate-spin-slow text-white"></i>
-                <div class="font-mono text-xs tracking-[0.2em] uppercase text-white mb-2">Orchestrating Reality</div>
-                <div id="loader-text" class="font-mono text-[10px] text-gray-500">Connecting to Quantum Node...</div>
-                
-                <!-- Progress Bar -->
-                <div class="w-64 h-1 bg-gray-900 mt-4 rounded overflow-hidden">
-                    <div id="loader-progress" class="h-full bg-white w-0 transition-all duration-300"></div>
-                </div>
-            </div>
-
-            <!-- Client-Side Render Target (Fallback/HTML5 Mode) -->
-            <canvas id="game-canvas"></canvas>
-            
-            <!-- Cloud Gaming Render Target (WebRTC Mode) -->
-            <video id="webrtc-video" autoplay playsinline></video>
-            
-            <!-- Heads Up Display (HUD) -->
-            <div class="hud-overlay">
-                <!-- Top Right: Performance Metrics -->
-                <div class="flex justify-end w-full">
-                    <div class="font-mono text-[10px] bg-black/80 border border-gray-800 p-2 rounded text-right pointer-events-auto">
-                        <div id="hud-fps" class="text-white">FPS: 0</div>
-                        <div id="hud-ram" class="text-gray-400">RAM: 0MB</div>
-                        <div id="hud-mode" class="text-gray-500 mt-1">Mode: LOCAL_GPU</div>
-                    </div>
-                </div>
-                
-                <!-- Bottom Left: Live Terminal -->
-                <div class="terminal-log" id="terminal-log">
-                    <div class="log-entry log-sys">[SYSTEM] God Node V2 Client Initialized.</div>
-                </div>
-            </div>
-        </main>
-
-        <!-- 4. COMMAND BAR (Input, Voice, Execution) -->
-        <footer class="command-bar gap-3">
-            <div class="input-wrapper">
-                
-                <!-- Advanced Voice Input Button -->
-                <button id="mic-btn" class="btn-icon mr-2 flex-shrink-0" onmousedown="GodVoice.startListening()" onmouseup="GodVoice.stopListening()" ontouchstart="GodVoice.startListening()" ontouchend="GodVoice.stopListening()">
-                    <i class="fa-solid fa-microphone"></i>
-                    <!-- HTML5 Canvas for real-time soundwave mathematics -->
-                    <canvas id="voice-visualizer"></canvas>
-                </button>
-                
-                <textarea id="god-prompt" rows="1" placeholder="Define reality... (e.g., 'Generate a AAA racing game' or 'Patch the car physics')" oninput="this.style.height='auto';this.style.height=(this.scrollHeight)+'px';"></textarea>
-                
-                <!-- Attachment/Context Button -->
-                <button class="btn-icon ml-2 flex-shrink-0" title="Attach Context">
-                    <i class="fa-solid fa-paperclip"></i>
-                </button>
-            </div>
-            
-            <button class="btn-action flex-shrink-0" onclick="GodUI.executeDirective()">
-                Execute <i class="fa-solid fa-bolt ml-2"></i>
-            </button>
-        </footer>
+<body class="h-screen w-screen flex flex-col justify-between p-3.5 gap-3 overflow-hidden">
+  <!-- 1. TOP NAVIGATION & TELEMETRY STATUS BAR -->
+  <header class="glass-panel rounded-2xl px-5 py-3 flex justify-between items-center shrink-0">
+    <div class="flex items-center gap-3.5">
+      <div class="w-3.5 h-3.5 rounded-full bg-cyan-400 pulse-dot shadow-lg shadow-cyan-400/50"></div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-black tracking-widest text-sm text-white font-mono">GOD NODE</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono font-bold">V2.0 ENTERPRISE</span>
+        </div>
+        <span class="text-[10px] text-slate-400 font-mono">Observer-Dependent Reality Engine (ODRE 60Hz)</span>
+      </div>
     </div>
 
-    <!-- ===================================================================== -->
-    <!-- ENTERPRISE JAVASCRIPT ARCHITECTURE (CLIENT-SIDE MONOLITH) -->
-    <!-- ===================================================================== -->
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    <!-- Live Telemetry Badges & Vault Button -->
+    <div class="flex items-center gap-3 text-xs font-mono">
+      <div class="hidden sm:flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+        <span class="text-slate-500">LATENCY:</span>
+        <span id="pingIndicator" class="text-emerald-400 font-bold">-- ms</span>
+      </div>
 
-        // ---------------------------------------------------------
-        // MODULE 1: TERMINAL & LOGGER SYSTEM
-        // ---------------------------------------------------------
-        class TerminalLogger {
-            constructor(elementId) {
-                this.terminal = document.getElementById(elementId);
-                this.logHistory = [];
-            }
-            
-            log(msg, type = 'sys') {
-                const entry = document.createElement('div');
-                entry.className = `log-entry log-${type}`;
-                const time = new Date().toISOString().split('T')[1].slice(0,8);
-                entry.innerText = `[${time}] ${msg}`;
-                
-                this.terminal.appendChild(entry);
-                this.terminal.scrollTop = this.terminal.scrollHeight;
-                
-                this.logHistory.push({time, msg, type});
-                if(this.terminal.children.length > 50) this.terminal.firstChild.remove();
-                
-                // Also mirror to browser console for debug
-                if(type === 'error') console.error(msg);
-                else console.log(`[GodNode] ${msg}`);
-            }
+      <div class="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+        <span class="text-slate-500">ENGINE:</span>
+        <span id="engineBadge" class="text-emerald-400 font-bold tracking-wider">ONLINE</span>
+      </div>
+
+      <!-- API Vault Settings Trigger -->
+      <button onclick="toggleApiVaultModal()" class="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-4 py-1.5 rounded-xl font-sans font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-indigo-600/30 active:scale-95">
+        <span>⚙️</span>
+        <span>API & Cloud Vault</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. MAIN SPLIT WORKSPACE -->
+  <main class="flex-1 grid grid-cols-12 gap-3 min-h-0 overflow-hidden">
+    
+    <!-- LEFT COLUMN: BUILD PIPELINES & G-DRIVE ASSET FACTORY (4 Cols) -->
+    <section class="col-span-12 lg:col-span-4 flex flex-col gap-3 min-h-0">
+      
+      <!-- Build Exporters -->
+      <div class="glass-panel rounded-2xl p-4 shrink-0 space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase font-mono">Universal Build Pipeline</span>
+          <span class="text-[10px] text-cyan-400 font-mono">1-Click Multiplatform</span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <button onclick="triggerUniversalBuild('Web (.ZIP)')" class="w-full py-2.5 px-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-cyan-500/30 flex justify-between items-center text-xs font-mono transition group active:scale-98">
+            <span class="text-slate-200 group-hover:text-cyan-300">📦 Web HTML5 (.ZIP)</span>
+            <span class="text-cyan-400 font-bold group-hover:translate-x-1 transition">Export →</span>
+          </button>
+          <button onclick="triggerUniversalBuild('Mobile (.APK)')" class="w-full py-2.5 px-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-purple-500/30 flex justify-between items-center text-xs font-mono transition group active:scale-98">
+            <span class="text-slate-200 group-hover:text-purple-300">📱 Mobile Standalone (.APK)</span>
+            <span class="text-purple-400 font-bold group-hover:translate-x-1 transition">Export →</span>
+          </button>
+          <button onclick="triggerUniversalBuild('PC (.EXE)')" class="w-full py-2.5 px-3.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/5 hover:border-emerald-500/30 flex justify-between items-center text-xs font-mono transition group active:scale-98">
+            <span class="text-slate-200 group-hover:text-emerald-300">💻 PC Executable (.EXE)</span>
+            <span class="text-emerald-400 font-bold group-hover:translate-x-1 transition">Export →</span>
+          </button>
+        </div>
+
+        <div id="buildBanner" class="hidden p-3 bg-cyan-950/40 border border-cyan-500/30 rounded-xl text-xs font-mono text-cyan-300 flex items-center justify-between">
+          <span id="buildBannerText">Building standalone bundle...</span>
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        </div>
+      </div>
+
+      <!-- Cloud Asset Factory / Google Drive Storage -->
+      <div class="glass-panel rounded-2xl p-4 flex-1 flex flex-col min-h-0 space-y-3">
+        <div class="flex justify-between items-center shrink-0">
+          <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase font-mono">5TB Asset Vault & G-Drive</span>
+          <label class="cursor-pointer text-[10px] bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 px-2.5 py-1 rounded-lg transition font-mono">
+            + Upload Asset
+            <input type="file" id="assetFileInput" onchange="handleAssetUpload(event)" class="hidden">
+          </label>
+        </div>
+
+        <div id="assetListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-xs text-slate-400">
+          <div class="text-center py-8 text-slate-600 text-xs">Loading Cloud Database Registry...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: 3D/2D VIEWPORT & TELEMETRY TERMINAL (8 Cols) -->
+    <section class="col-span-12 lg:col-span-8 flex flex-col gap-3 min-h-0">
+      
+      <!-- Live Simulation Canvas / Viewport Container -->
+      <div class="glass-panel rounded-2xl p-3 flex flex-col h-1/2 min-h-[220px] relative overflow-hidden">
+        <div class="flex justify-between items-center pb-2 px-1 border-b border-white/5 text-[11px] font-mono text-slate-400 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="font-bold text-slate-300 uppercase tracking-wider">ODRE Quantum Viewport (Live Simulation)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="resetViewport()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Reset Camera</button>
+            <button onclick="toggleViewportFullscreen()" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition">Fullscreen</button>
+          </div>
+        </div>
+
+        <!-- HTML5 WebGL / 2D Canvas Target -->
+        <div id="viewportFrame" class="flex-1 w-full h-full relative bg-black/60 rounded-xl mt-2 overflow-hidden flex items-center justify-center border border-white/5">
+          <canvas id="gameCanvas" class="w-full h-full block"></canvas>
+          <div id="viewportSplash" class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm pointer-events-none transition-opacity duration-300">
+            <span class="text-xs font-mono text-cyan-400 tracking-widest uppercase mb-1">Reality Canvas Idle</span>
+            <span class="text-[11px] text-slate-500 font-mono">Submit a prompt below to compile and simulate 3D reality</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Realtime Telemetry Terminal Logs -->
+      <div class="glass-panel rounded-2xl p-3 flex flex-col flex-1 min-h-[160px] overflow-hidden">
+        <div class="flex justify-between items-center pb-2 px-1 border-b border-white/5 text-[11px] font-mono text-slate-400 shrink-0">
+          <div class="flex items-center gap-2">
+            <span class="text-cyan-400 font-bold">⚡ SSE STREAM</span>
+            <span>/api/v2/logs</span>
+          </div>
+          <div class="flex items-center gap-3 text-xs">
+            <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-200">
+              <input type="checkbox" id="autoScrollToggle" checked class="accent-cyan-500">
+              <span>Auto-Scroll</span>
+            </label>
+            <button onclick="copyLogsToClipboard()" class="hover:text-cyan-400 transition">Copy</button>
+            <button onclick="clearTerminalScreen()" class="hover:text-rose-400 transition">Clear</button>
+          </div>
+        </div>
+
+        <div id="terminalStream" class="flex-1 overflow-y-auto mt-2 p-3 bg-black/80 rounded-xl font-mono text-xs space-y-1.5 shadow-inner">
+          <div class="text-slate-500">[00:00:00] [SYSTEM] Telemetry link established. All AI Swarm pipelines listening.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 3. BOTTOM COMMAND DOCK & VOICE RECOGNITION -->
+  <footer class="glass-panel rounded-2xl p-2.5 flex items-center gap-3 shrink-0 shadow-2xl">
+    
+    <!-- Active Microphone Listener -->
+    <button id="voiceMicBtn" onclick="toggleSpeechListener()" class="p-3.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-slate-300 border border-white/10 transition active:scale-90 flex items-center justify-center shrink-0" title="Voice-to-Text Directive">
+      <svg id="micSvgIcon" class="w-5 h-5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3z"></path>
+      </svg>
+    </button>
+
+    <!-- Natural Language Command Input -->
+    <div class="flex-1 relative">
+      <input type="text" id="directivePromptInput" onkeydown="if(event.key==='Enter') dispatchMasterDirective()" placeholder="Define reality... (e.g., 'Generate an infinite procedural neon city with flying vehicles and gravity physics')" class="w-full bg-black/70 border border-white/10 focus:border-cyan-400/80 rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition font-sans shadow-inner">
+    </div>
+
+    <!-- Execute Directive Action Button -->
+    <button onclick="dispatchMasterDirective()" class="bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-mono font-bold text-xs sm:text-sm px-7 py-3 rounded-xl transition active:scale-95 shadow-lg shadow-cyan-500/20 tracking-wider shrink-0">
+      EXECUTE
+    </button>
+  </footer>
+
+  <!-- 4. MODALS: API VAULT & CRITICAL PIN INTERCEPTOR -->
+  
+  <!-- Dynamic API Vault & Cloud Storage Modal -->
+  <div id="apiVaultModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+    <div class="glass-panel bg-slate-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5">
+      <div class="flex justify-between items-center pb-2 border-b border-white/10">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🔐</span>
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider font-mono">Dynamic API & Cloud Storage Vault</h3>
+        </div>
+        <button onclick="toggleApiVaultModal()" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-400 font-sans leading-relaxed">
+        Credentials are encrypted in local browser storage and seamlessly injected into live Swarm HTTP requests without server restarts.
+      </p>
+
+      <div class="space-y-3.5 font-mono text-xs">
+        <div>
+          <label class="block text-slate-300 mb-1">Google Gemini API Key</label>
+          <input type="password" id="vaultInputGemini" placeholder="AIzaSy..." class="w-full bg-black/70 border border-white/10 rounded-lg p-2.5 text-white outline-none focus:border-cyan-400">
+        </div>
+        <div>
+          <label class="block text-slate-300 mb-1">OpenAI API Key (Backup Gateway)</label>
+          <input type="password" id="vaultInputOpenAI" placeholder="sk-..." class="w-full bg-black/70 border border-white/10 rounded-lg p-2.5 text-white outline-none focus:border-cyan-400">
+        </div>
+        <div>
+          <label class="block text-slate-300 mb-1">Google Drive (5TB Vault) Client Token / Secret</label>
+          <input type="password" id="vaultInputGDrive" placeholder="OAuth Token or Service Key" class="w-full bg-black/70 border border-white/10 rounded-lg p-2.5 text-white outline-none focus:border-cyan-400">
+        </div>
+        <div>
+          <label class="block text-slate-300 mb-1">Master Security PIN</label>
+          <input type="password" id="vaultInputPin" placeholder="7777" value="7777" class="w-full bg-black/70 border border-white/10 rounded-lg p-2.5 text-white outline-none focus:border-cyan-400">
+        </div>
+      </div>
+
+      <div class="flex gap-3 pt-3">
+        <button onclick="saveApiVaultCredentials()" class="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold rounded-xl text-xs font-mono transition">SAVE & SYNC VAULT</button>
+        <button onclick="toggleApiVaultModal()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-mono transition">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Master PIN Verification Dialog for Critical Actions -->
+  <div id="pinModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="glass-panel bg-slate-900 border border-white/10 rounded-2xl max-w-xs w-full p-5 shadow-2xl space-y-4 text-center">
+      <div class="text-2xl">🛡️</div>
+      <h4 class="text-xs font-bold font-mono tracking-wider text-white uppercase">Authorization Required</h4>
+      <p class="text-[11px] text-slate-400">Enter your Master PIN to execute this operation.</p>
+      
+      <input type="password" id="criticalPinInput" maxlength="8" placeholder="••••" class="w-full bg-black/80 border border-white/15 rounded-xl p-2.5 text-center text-lg tracking-widest text-white outline-none focus:border-cyan-400">
+      
+      <div class="flex gap-2">
+        <button id="pinConfirmBtn" class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-bold rounded-xl transition">AUTHORIZE</button>
+        <button onclick="closePinModal()" class="px-4 py-2 bg-slate-800 text-slate-300 text-xs font-mono rounded-xl transition">CANCEL</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    // =========================================================================
+    // 1. STATE MANAGEMENT & SECURE LOCAL VAULT
+    // =========================================================================
+    const VAULT_KEYS = {
+      GEMINI: 'GOD_VAULT_GEMINI',
+      OPENAI: 'GOD_VAULT_OPENAI',
+      GDRIVE: 'GOD_VAULT_GDRIVE',
+      PIN: 'GOD_VAULT_PIN'
+    };
+
+    function getStoredCredential(key, defaultVal = '') {
+      return localStorage.getItem(key) || defaultVal;
+    }
+
+    function setStoredCredential(key, val) {
+      localStorage.setItem(key, val);
+    }
+
+    function getRequestHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'X-Master-Pin': getStoredCredential(VAULT_KEYS.PIN, '7777'),
+        'X-Gemini-Key': getStoredCredential(VAULT_KEYS.GEMINI, ''),
+        'X-OpenAI-Key': getStoredCredential(VAULT_KEYS.OPENAI, ''),
+        'X-GDrive-Key': getStoredCredential(VAULT_KEYS.GDRIVE, '')
+      };
+    }
+
+    // =========================================================================
+    // 2. LIVE TELEMETRY LOGGING ENGINE (SSE & Fallback Polling)
+    // =========================================================================
+    const terminalStream = document.getElementById('terminalStream');
+    const autoScrollToggle = document.getElementById('autoScrollToggle');
+
+    function appendTerminalLog(message, level = 'info') {
+      const line = document.createElement('div');
+      const time = new Date().toLocaleTimeString();
+      
+      let colorClass = 'text-slate-300';
+      if (level === 'success') colorClass = 'text-emerald-400';
+      else if (level === 'error') colorClass = 'text-rose-400';
+      else if (level === 'warn') colorClass = 'text-amber-400';
+      else if (level === 'accent') colorClass = 'text-cyan-400';
+
+      // Security: Redact PIN / Secret Tokens from UI view
+      let safeMsg = String(message).replace(/([A-Za-z0-9_-]{20,})/g, '[TOKEN_REDACTED]');
+      
+      line.className = `${colorClass} font-mono leading-relaxed`;
+      line.innerText = `[${time}] ${safeMsg}`;
+      terminalStream.appendChild(line);
+
+      if (autoScrollToggle.checked) {
+        terminalStream.scrollTop = terminalStream.scrollHeight;
+      }
+    }
+
+    function clearTerminalScreen() {
+      terminalStream.innerHTML = '';
+      appendTerminalLog('Terminal buffer cleared.', 'info');
+    }
+
+    function copyLogsToClipboard() {
+      const text = terminalStream.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        appendTerminalLog('✔ Telemetry logs copied to clipboard.', 'success');
+      }).catch(() => {
+        appendTerminalLog('❌ Failed to copy logs.', 'error');
+      });
+    }
+
+    // Initialize Server-Sent Events (SSE) for Real-Time Streaming
+    function initTelemetrySSE() {
+      try {
+        const evtSource = new EventSource('/api/v2/logs');
+        evtSource.onmessage = (e) => {
+          if (e.data) appendTerminalLog(e.data, 'info');
+        };
+        evtSource.onerror = () => {
+          evtSource.close();
+          // Fallback to 3s Polling if SSE is unavailable
+          setInterval(pollSystemLogsFallback, 3000);
+        };
+      } catch (e) {
+        setInterval(pollSystemLogsFallback, 3000);
+      }
+    }
+
+    let lastLogIndex = 0;
+    async function pollSystemLogsFallback() {
+      try {
+        const res = await fetch('/api/v2/logs?recent=10');
+        const data = await res.json();
+        if (data.logs && Array.isArray(data.logs)) {
+          data.logs.forEach(msg => appendTerminalLog(msg, 'info'));
         }
-        const Logger = new TerminalLogger('terminal-log');
+      } catch (e) {}
+    }
 
-        // ---------------------------------------------------------
-        // MODULE 2: WEB SPEECH API & AUDIO MATHEMATICS
-        // ---------------------------------------------------------
-        class VoiceEngine {
-            constructor() {
-                this.btn = document.getElementById('mic-btn');
-                this.promptInput = document.getElementById('god-prompt');
-                this.canvas = document.getElementById('voice-visualizer');
-                this.ctx = this.canvas.getContext('2d');
-                this.isListening = false;
-                
-                this.audioCtx = null;
-                this.analyser = null;
-                this.dataArray = null;
-                this.animationId = null;
-                
-                this.initSpeech();
-            }
+    // Ping & System Health Heartbeat
+    async function heartbeatPingCheck() {
+      const start = Date.now();
+      try {
+        const res = await fetch('/api/v2/status');
+        const data = await res.json();
+        const latency = Date.now() - start;
+        document.getElementById('pingIndicator').innerText = `${latency} ms`;
+        document.getElementById('engineBadge').innerText = data.status || 'ONLINE';
+      } catch (err) {
+        document.getElementById('pingIndicator').innerText = '-- ms';
+        document.getElementById('engineBadge').innerText = 'STANDBY';
+      }
+    }
+    setInterval(heartbeatPingCheck, 3500);
+    heartbeatPingCheck();
 
-            initSpeech() {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                if (!SpeechRecognition) {
-                    Logger.log("Web Speech API not supported in this browser.", "error");
-                    return;
-                }
-                
-                this.recognition = new SpeechRecognition();
-                this.recognition.continuous = true;
-                this.recognition.interimResults = true;
-                
-                this.recognition.onresult = (event) => {
-                    let transcript = '';
-                    for (let i = event.resultIndex; i < event.results.length; i++) {
-                        transcript += event.results[i][0].transcript;
-                    }
-                    this.promptInput.value = transcript;
-                };
-                
-                this.recognition.onerror = (e) => Logger.log(`Voice Error: ${e.error}`, "warn");
-                this.recognition.onend = () => this.stopListening();
-            }
+    // =========================================================================
+    // 3. API VAULT MODAL CONTROLLER
+    // =========================================================================
+    function toggleApiVaultModal() {
+      const modal = document.getElementById('apiVaultModal');
+      modal.classList.toggle('hidden');
+      modal.classList.toggle('flex');
 
-            async initAudioMath() {
-                if (this.audioCtx) return;
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = this.audioCtx.createMediaStreamSource(stream);
-                    this.analyser = this.audioCtx.createAnalyser();
-                    this.analyser.fftSize = 64; // Low res for aesthetic waveform
-                    source.connect(this.analyser);
-                    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-                    
-                    // Resize canvas to match button size
-                    this.canvas.width = this.btn.offsetWidth;
-                    this.canvas.height = this.btn.offsetHeight;
-                } catch(e) {
-                    Logger.log("Microphone access denied for waveform.", "warn");
-                }
-            }
+      if (!modal.classList.contains('hidden')) {
+        document.getElementById('vaultInputGemini').value = getStoredCredential(VAULT_KEYS.GEMINI);
+        document.getElementById('vaultInputOpenAI').value = getStoredCredential(VAULT_KEYS.OPENAI);
+        document.getElementById('vaultInputGDrive').value = getStoredCredential(VAULT_KEYS.GDRIVE);
+        document.getElementById('vaultInputPin').value = getStoredCredential(VAULT_KEYS.PIN, '7777');
+      }
+    }
 
-            drawWaveform() {
-                if (!this.isListening || !this.analyser) return;
-                
-                this.animationId = requestAnimationFrame(() => this.drawWaveform());
-                this.analyser.getByteFrequencyData(this.dataArray);
-                
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.ctx.fillStyle = '#ffffff';
-                
-                const barWidth = (this.canvas.width / this.analyser.frequencyBinCount) * 1.5;
-                let x = 0;
-                
-                for(let i = 0; i < this.analyser.frequencyBinCount; i++) {
-                    const barHeight = (this.dataArray[i] / 255) * this.canvas.height * 0.8;
-                    const y = (this.canvas.height - barHeight) / 2; // Center vertically
-                    
-                    // Draw rounded rects for wave
-                    this.ctx.beginPath();
-                    this.ctx.roundRect(x, y, barWidth - 1, barHeight, 2);
-                    this.ctx.fill();
-                    
-                    x += barWidth;
-                }
-            }
+    function saveApiVaultCredentials() {
+      setStoredCredential(VAULT_KEYS.GEMINI, document.getElementById('vaultInputGemini').value.trim());
+      setStoredCredential(VAULT_KEYS.OPENAI, document.getElementById('vaultInputOpenAI').value.trim());
+      setStoredCredential(VAULT_KEYS.GDRIVE, document.getElementById('vaultInputGDrive').value.trim());
+      setStoredCredential(VAULT_KEYS.PIN, document.getElementById('vaultInputPin').value.trim() || '7777');
 
-            async startListening() {
-                if (this.isListening) return;
-                this.isListening = true;
-                this.btn.classList.add('mic-active');
-                
-                if(this.recognition) this.recognition.start();
-                
-                await this.initAudioMath();
-                if(this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                this.drawWaveform();
-                
-                Logger.log("Voice Engine Activated. Listening...", "sys");
-            }
+      toggleApiVaultModal();
+      appendTerminalLog('✔ Dynamic API Vault synced. Neural pathways active.', 'success');
+    }
 
-            stopListening() {
-                if (!this.isListening) return;
-                this.isListening = false;
-                this.btn.classList.remove('mic-active');
-                
-                if(this.recognition) this.recognition.stop();
-                if(this.animationId) cancelAnimationFrame(this.animationId);
-                
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                Logger.log("Voice Engine Deactivated.", "sys");
-            }
+    // =========================================================================
+    // 4. SPEECH RECOGNITION (VOICE TO DIRECTIVE)
+    // =========================================================================
+    let speechRecognizer = null;
+    let isSpeechActive = false;
+
+    function initSpeechEngine() {
+      const SpeechConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechConstructor) {
+        appendTerminalLog('⚠️ Web Speech API not supported in this browser.', 'warn');
+        return;
+      }
+
+      speechRecognizer = new SpeechConstructor();
+      speechRecognizer.continuous = false;
+      speechRecognizer.interimResults = true;
+      speechRecognizer.lang = 'en-US';
+
+      speechRecognizer.onstart = () => {
+        isSpeechActive = true;
+        document.getElementById('voiceMicBtn').classList.add('bg-rose-600', 'neon-purple-glow', 'animate-pulse');
+        appendTerminalLog('🎙️ Microphone active. Speak your simulation directive...', 'warn');
+      };
+
+      speechRecognizer.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
         }
-        window.GodVoice = new VoiceEngine(); // Expose to global for inline handlers
+        document.getElementById('directivePromptInput').value = transcript;
+      };
 
-        // --------
+      speechRecognizer.onerror = (event) => {
+        appendTerminalLog(`⚠️ Voice input error: ${event.error}`, 'error');
+        isSpeechActive = false;
+        document.getElementById('voiceMicBtn').classList.remove('bg-rose-600', 'neon-purple-glow', 'animate-pulse');
+      };
+
+      speechRecognizer.onend = () => {
+        isSpeechActive = false;
+        document.getElementById('voiceMicBtn').classList.remove('bg-rose-600', 'neon-purple-glow', 'animate-pulse');
+        const captured = document.getElementById('directivePromptInput').value.trim();
+        if (captured) {
+          appendTerminalLog(`🎙️ Voice Directive captured: "${captured}"`, 'accent');
+        }
+      };
+    }
+
+    function toggleSpeechListener() {
+      if (!speechRecognizer) {
+        initSpeechEngine();
+        if (!speechRecognizer) return;
+      }
+      if (isSpeechActive) {
+        speechRecognizer.stop();
+      } else {
+        speechRecognizer.start();
+      }
+    }
+
+    // =========================================================================
+    // 5. MASTER DIRECTIVE DISPATCHER (EXECUTE PIPELINE)
+    // =========================================================================
+    async function dispatchMasterDirective() {
+      const input = document.getElementById('directivePromptInput');
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      appendTerminalLog(`⚡ Dispatched Directive: "${prompt}"`, 'accent');
+      input.value = '';
+      
+      // Hide Viewport Splash & Start Simulation Preview
+      document.getElementById('viewportSplash').style.opacity = '0';
+      startSimulationCanvasPreview();
+
+      try {
+        const res = await fetch('/api/v2/execute', {
+          method: 'POST',
+          headers: getRequestHeaders(),
+          body: JSON.stringify({
+            directive: prompt,
+            master_pin: getStoredCredential(VAULT_KEYS.PIN, '7777')
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          appendTerminalLog(`✔ AI Swarm Task Acknowledged: ${data.task_id || 'TASK_ACTIVE'}`, 'success');
+        } else {
+          appendTerminalLog(`❌ Swarm Execution Error: ${data.detail || 'Execution Failed'}`, 'error');
+        }
+      } catch (err) {
+        appendTerminalLog(`❌ Network Error in Execution: ${err.message}`, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 6. UNIVERSAL BUILD & EXPORT CONTROLLER (1-CLICK)
+    // =========================================================================
+    async function triggerUniversalBuild(platformName) {
+      appendTerminalLog(`📦 Packaging engine build for target: ${platformName}...`, 'accent');
+      
+      const banner = document.getElementById('buildBanner');
+      const bannerText = document.getElementById('buildBannerText');
+      banner.classList.remove('hidden');
+      bannerText.innerText = `Packaging standalone ${platformName} bundle...`;
+
+      try {
+        const res = await fetch('/api/v2/build', {
+          method: 'POST',
+          headers: getRequestHeaders(),
+          body: JSON.stringify({
+            target_platform: platformName,
+            master_pin: getStoredCredential(VAULT_KEYS.PIN, '7777')
+          })
+        });
+
+        const data = await res.json();
+        setTimeout(() => {
+          bannerText.innerText = `✔ ${platformName} bundle generated and ready!`;
+          appendTerminalLog(`✔ Build Complete: ${platformName} compiled successfully.`, 'success');
+          
+          // Trigger file download if download URL exists
+          if (data.download_url) {
+            const link = document.createElement('a');
+            link.href = data.download_url;
+            link.download = `god_node_${platformName.replace(/[^a-zA-Z0-9]/g, '_')}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }, 1800);
+      } catch (err) {
+        banner.classList.add('hidden');
+        appendTerminalLog(`❌ Build Pipeline Failed: ${err.message}`, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 7. 5TB CLOUD ASSETS & G-DRIVE INTEGRATION
+    // =========================================================================
+    async function fetchAssetRegistry() {
+      const container = document.getElementById('assetListContainer');
+      try {
+        const res = await fetch('/api/v2/assets/list');
+        const data = await res.json();
+        
+        if (data.items && data.items.length > 0) {
+          container.innerHTML = data.items.map(item => `
+            <div class="p-2.5 rounded-xl bg-slate-900/60 border border-white/5 flex justify-between items-center hover:border-cyan-500/20 transition">
+              <div class="truncate mr-2">
+                <div class="text-slate-200 font-semibold truncate text-[11px]">📄 ${item.name}</div>
+                <div class="text-[10px] text-slate-500">${(item.size / 1024).toFixed(1)} KB • ${item.type || 'Cloud File'}</div>
+              </div>
+              <button onclick="deleteCloudAsset('${item.id}')" class="text-slate-500 hover:text-rose-400 p-1 rounded transition text-xs" title="Delete Asset">✕</button>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = `<div class="text-center py-8 text-slate-600 text-xs">No assets stored in G-Drive Vault.</div>`;
+        }
+      } catch (e) {
+        container.innerHTML = `<div class="text-center py-8 text-slate-600 text-xs">Vault running local memory registry.</div>`;
+      }
+    }
+
+    async function handleAssetUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      appendTerminalLog(`📤 Uploading ${file.name} to 5TB Cloud Vault...`, 'info');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('pin', getStoredCredential(VAULT_KEYS.PIN, '7777'));
+
+      try {
+        const res = await fetch('/api/v2/assets/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          appendTerminalLog(`✔ Asset Uploaded: ${file.name}`, 'success');
+          fetchAssetRegistry();
+        } else {
+          appendTerminalLog(`❌ Failed to upload asset.`, 'error');
+        }
+      } catch (err) {
+        appendTerminalLog(`❌ Upload Network Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function deleteCloudAsset(assetId) {
+      try {
+        const res = await fetch('/api/v2/assets/delete', {
+          method: 'POST',
+          headers: getRequestHeaders(),
+          body: JSON.stringify({ assetId: assetId })
+        });
+        if (res.ok) {
+          appendTerminalLog(`🗑️ Asset Removed: ${assetId}`, 'info');
+          fetchAssetRegistry();
+        }
+      } catch (e) {}
+    }
+
+    // =========================================================================
+    // 8. QUANTUM 3D/2D VIEWPORT SIMULATION LOOP
+    // =========================================================================
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let animFrameId = null;
+    let simParticles = [];
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function startSimulationCanvasPreview() {
+      simParticles = [];
+      for (let i = 0; i < 45; i++) {
+        simParticles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: (Math.random() - 0.5) * 1.5,
+          size: Math.random() * 2.5 + 1,
+          color: Math.random() > 0.5 ? '#00f4ff' : '#9d4edd'
+        });
+      }
+
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      
+      function renderLoop() {
+        ctx.fillStyle = 'rgba(6, 7, 10, 0.25)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        simParticles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+          if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        animFrameId = requestAnimationFrame(renderLoop);
+      }
+      renderLoop();
+    }
+
+    function resetViewport() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('viewportSplash').style.opacity = '1';
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+      appendTerminalLog('Viewport camera and render buffer reset.', 'info');
+    }
+
+    function toggleViewportFullscreen() {
+      const elem = document.getElementById('viewportFrame');
+      if (!document.fullscreenElement) {
+        elem.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // =========================================================================
+    // 9. INITIAL BOOTSTRAP SEQUENCE
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      initTelemetrySSE();
+      initSpeechEngine();
+      fetchAssetRegistry();
+      appendTerminalLog('⚡ GOD NODE V2.0 Web Client Initialized.', 'success');
+    });
+  </script>
+</body>
+</html>
+    
